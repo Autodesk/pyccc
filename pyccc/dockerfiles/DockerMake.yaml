@@ -1,0 +1,43 @@
+base_install:
+ FROM: phusion/baseimage
+ build: |
+  RUN apt-get -y update && apt-get -y install \
+      build-essential \
+      cmake \
+      git \
+      subversion \
+      mercurial \
+      libtool \
+      swig \
+      wget \
+      csh \
+      tcsh
+
+python_install:
+ requires:
+  - base_install
+ build: |
+  RUN apt-get -y update \
+  && apt-get install -y \
+    python \
+    python-dev \
+    python-pip \
+    zlib1g-dev \
+    libzmq-dev \
+    pkg-config \
+    libfreetype6-dev \
+    netpbm \
+    libpng12-dev \
+  && pip install \
+    numpy \
+    scipy \
+    mpi4py
+
+minimal_python:
+ FROM: phusion/baseimage
+ build_directory: ../
+ build: |
+  RUN apt-get update && apt-get install -y python python-pip
+  RUN pip install docker-py pyyaml
+  COPY . /opt/bioplatform
+  ENV PYTHONPATH=$PYTHONPATH:/opt
