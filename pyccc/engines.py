@@ -126,8 +126,11 @@ class CloudComputeCannon(EngineBase):
         """
         from pyccc.jsonrpc import JsonRpcProxy
 
-        self.host = url
-        self.proxy = JsonRpcProxy(url)
+        if '://' not in url: url = 'http://' + url
+        if not url.endswith('/'): url += '/'
+        self.base_url = url
+        self.endpoint = url + 'api/rpc'
+        self.proxy = JsonRpcProxy(self.endpoint)
 
         if testconnection: self.test_connection()
 
@@ -161,26 +164,54 @@ class CloudComputeCannon(EngineBase):
         # TODO: inherit docstring
         returnval = self.proxy.submitjob(image=job.image,
                                          command=job.command,
+                                         inputs=job.inputs,
                                          cpus=job.numcpus,  # how is this the "minimum"?
-                                         maxDuration=job.runtime)
+                                         maxDuration=1000*job.runtime)
 
         job.jobid = returnval['jobId']
+        job._result_json = None
 
     def get_status(self, job):
         # Pending|Working|Finalizing|Finished
         response = self.proxy.job(command='status', jobId=[job.jobid])
-        return response[job.id]
+        return response[job.jobid]
 
     def wait(self, job):
         raise NotImplementedError()
+
+    def _get_result_json(self, job):
+        if job._result_json is None:
+            job._result_json = self.proxy.job(command='result',
+                                              jobId=[job.jobid])
+        return job._result_json[job.jobid]
+
+    def _download(self, path):
+        url = self.base_url + path
+        return files.HttpContainer(url)
+
+    def _get_final_stds(self, job):
+        result_json = self._get_result_json(job)
+        stdout = self._download(result_json['stdout']).read()
+        stderr = self._download(result_json['stderr']).read()
+        return stdout, stderr
+
+    def _list_output_files(self, job):
+        result_json = self._get_result_json(job)
+        output_url = self.base_url + 'SJSo15ff/outputs/'
+
+
+
 
 
 class Subprocess(EngineBase):
     """Just runs a job locally in a subprocess.
     For now, don't return anything until job completes"""
-    def get_status(self,job):
-        if job.subproc.poll() is None: return 'running'
-        else: return 'finished'
+
+    def get_status(self, job):
+        if job.subproc.poll() is None:
+            return 'running'
+        else:
+            return 'finished'
 
     def get_engine_description(self, job):
         """
@@ -225,7 +256,7 @@ class Subprocess(EngineBase):
     def _get_final_stds(self, job):
         strings = []
         #Todo - we'll need to buffer any streamed output, since stdout isn't seekable
-        for fileobj in (job.subproc.stdout,job.subproc.stderr):
+        for fileobj in (job.subproc.stdout, job.subproc.stderr):
             strings.append(fileobj.read())
         return strings
 

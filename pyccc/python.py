@@ -25,10 +25,12 @@ from pyccc import job
 from pyccc import source_inspections as src
 from pyccc.files import StringContainer, LocalFile
 
-__all__ = 'PythonCall PythonLauncher PythonJob'.split()
+__all__ = 'PythonCall PythonLauncher PythonJob ProgramFailure'.split()
 
 
-PYTHON_JOB_FILE = LocalFile('%s/static/run_job.py'%pyccc.PACKAGE_PATH)
+PYTHON_JOB_FILE = LocalFile('%s/static/run_job.py' % pyccc.PACKAGE_PATH)
+
+class ProgramFailure(Exception): pass
 
 
 class PythonCall(object):
@@ -132,7 +134,13 @@ class PythonJob(job.Job):
         """
         if self._callback_result is None:
             self.reraise_remote_exception(force=True)  # there's no result to return
-            self._callback_result = cp.loads(self.get_output('_function_return.pkl').read())
+            try:
+                returnval = self.get_output('_function_return.pkl')
+            except KeyError:
+                raise ProgramFailure('The remote python program crashed without throwing an '
+                                     'exception. Please carefully examine the execution '
+                                     'environment.')
+            self._callback_result = cp.loads(returnval.read())
         return self._callback_result
 
     def finish(self):
