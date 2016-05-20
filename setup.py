@@ -3,15 +3,10 @@ from os.path import relpath, join
 
 import sys
 from setuptools import find_packages, setup
+import versioneer
 
-#DOCLINES = __doc__.split("\n")
 assert sys.version_info[:2] == (2, 7), "Sorry, this package requires Python 2.7."
 
-########################
-__version__ = '0.3'
-VERSION = __version__
-ISRELEASED = False
-########################
 CLASSIFIERS = """\
 Development Status :: 4 - Beta
 Natural Language :: English
@@ -44,10 +39,11 @@ def find_package_data():
 
 setup(
     name='PyCloudComputeCannon',
-    version='0.3',
+    version=versioneer.get_version(),
     classifiers=CLASSIFIERS.split('\n'),
     packages=find_packages(),
     package_data={'pyccc': find_package_data()},
+    cmdclass=versioneer.get_cmdclass(),
     install_requires=requirements,
     url='http://autodeskresearch.com',
     license='Apache 2.0',
