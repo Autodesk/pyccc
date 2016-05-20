@@ -7,6 +7,8 @@ import versioneer
 
 assert sys.version_info[:2] == (2, 7), "Sorry, this package requires Python 2.7."
 
+PACKAGE_NAME = 'pyccc'
+
 CLASSIFIERS = """\
 Development Status :: 4 - Beta
 Natural Language :: English
@@ -28,27 +30,30 @@ with open('requirements.txt', 'r') as reqfile:
     requirements = [x.strip() for x in reqfile if x.strip()]
 
 
-def find_package_data():
+def find_package_data(pkgdir):
+    """ Just include all files that won't be included as package modules.
+    """
     files = []
-    for root, dirnames, filenames in os.walk('pyccc'):
+    for root, dirnames, filenames in os.walk(pkgdir):
+        not_a_package = '__init__.py' not in filenames
         for fn in filenames:
             basename, fext = os.path.splitext(fn)
-            if fext not in PYEXT:
-                files.append(relpath(join(root, fn), 'pyccc'))
+            if not_a_package or (fext not in PYEXT) or ('static' in fn):
+                files.append(relpath(join(root, fn), pkgdir))
     return files
 
 setup(
-    name='PyCloudComputeCannon',
+    name=PACKAGE_NAME,
     version=versioneer.get_version(),
     classifiers=CLASSIFIERS.split('\n'),
     packages=find_packages(),
-    package_data={'pyccc': find_package_data()},
+    package_data={PACKAGE_NAME: find_package_data(PACKAGE_NAME)},
     cmdclass=versioneer.get_cmdclass(),
     install_requires=requirements,
     url='http://autodeskresearch.com',
     license='Apache 2.0',
     author='Aaron Virshup',
     author_email='aaron.virshup [at] autodesk [dot] com',
-    description='Python bindings for CloudComputeCannon (with support for other computational '
+    description='Py-Cloud-Compute-Cannon: Python bindings for CloudComputeCannon (with support for other computational '
                 'engines)'
 )
