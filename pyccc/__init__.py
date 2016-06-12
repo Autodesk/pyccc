@@ -21,9 +21,8 @@ from pyccc.ui import *
 from pyccc.files import *
 
 
-# Other package metadata
+# Package metadata
+from pyccc import _version
+__version__ = _version.get_versions()['version']
 __copyright__ = "Copyright 2016 Autodesk Inc."
 __license__ = "Apache 2.0"
-import os as _os
-with open(_os.path.join(PACKAGE_PATH, 'VERSION')) as versionfile:
-    __version__ = versionfile.read().strip()
