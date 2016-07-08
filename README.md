@@ -1,38 +1,17 @@
-# PyBioWorkflow
-A high-level python interface for running jobs using bio/nano workflow manager.
+# py-cloud-compute-cannon
+A high-level python interface for running computational jobs using a variety of distributed computing backends.
 
-To run a job:
-1. Specify where the job will run: create a `Provider` instance from the `providers` module:
-```python
-provider = providers.Subprocess()
-# or maybe
-provider = providers.BioNanoPlatform(host='platform.bionano.autodesk.com')
-```
 
-2. Launch the job:
-```python
-job = provider.launch('docker_image_name',command,input_files,output_files)
-```
+## Installation
 
-Here's how to run a job with the workflow manager.<br>
-To run it locally,  replace `BioNanoPlatform` with `Subprocess`.<br>
-To run it in a docker container, replace `BioNanoPlatform` with `Docker`.
-```python 
-from bioplatform import providers, files
-provider = providers.BioNanoPlatform(host='platform.bionano.autodesk.com:8080')
-input_files = {'myfile.txt': files.StringContainer('abc123','tempname') }
-job = provider.launch('ubuntu',
-                     'cp -v myfile.txt newfile.txt && echo done!',
-                     inputs=input_files)
+    $ pip install pyccc
 
-job.wait()
-print job.stdout 
-#prints:
-#  >myfile.txt -> newfile.txt
-#  >done!
 
-print job.get_output('newfile.txt').contents.strip()
-#prints:
-#  >abc123
-```
+## License
 
+Copyright 2016 Autodesk Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
