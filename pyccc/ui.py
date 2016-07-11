@@ -88,7 +88,7 @@ class FileView(ipy.Box):
     CHUNK = 10000
     TRUNCATE_MESSAGE = '... [click "See more" to continue]'
     TEXTAREA_KWARGS = dict(font_family='monospace',
-                           width='100%',
+                           width='75%',
                            disabled=True)
 
     def __init__(self, fileobj, **kwargs):
