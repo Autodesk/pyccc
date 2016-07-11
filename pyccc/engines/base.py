@@ -38,11 +38,11 @@ class EngineBase(object):
             image (str): name of the docker image to launch
             command (str): shell command to run
         """
-        if issubclass(command.__class__,PythonCall):
-            to_call = PythonJob
+        if issubclass(command.__class__, PythonCall):
+            JobClass = PythonJob
         else:
-            to_call = Job
-        return to_call(self, image, command, **kwargs)
+            JobClass = Job
+        return JobClass(self, image, command, **kwargs)  # creates and submits the job
 
     def get_engine_description(self, job):
         """

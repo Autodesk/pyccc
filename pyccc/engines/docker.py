@@ -11,9 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import docker
-from pyccc import docker_utils as du, utils, files
+from pyccc import docker_utils as du
+from pyccc import utils, files
 from . import EngineBase
 
 
@@ -114,3 +114,11 @@ class Docker(EngineBase):
         newdict = self.__dict__.copy()
         newdict.pop('client', None)
         return newdict
+
+
+class DockerMachine(Docker):
+    """ Convenience class for connecting to a docker machine.
+    """
+    def __init__(self, machine_name):
+        client = du.docker_machine_client(machine_name=machine_name)
+        super(DockerMachine, self).__init__(client)

@@ -16,19 +16,57 @@
 This is a script that drives the remote computation of a function or instance method.
 It's designed to use the pickled objects produced by the PythonJob class
 """
+import os
 import cPickle as cp
 import traceback as tb
 
+
+RENAMETABLE = {'pyccc.python': 'source',
+               '__main__':'source'}
+
+
+def unpickle_with_remap(fileobj):
+    """ This function remaps pickled classnames. It's specifically here to remap the
+    "PackagedFunction" class from pyccc to the __main__ module.
+
+    References:
+        This was taken without modification from
+        https://wiki.python.org/moin/UsingPickle/RenamingModules
+    """
+    import pickle
+
+    try:
+        from cStringIO import StringIO
+    except ImportError:
+        from StringIO import StringIO
+
+    def mapname(name):
+        if name in RENAMETABLE:
+            return RENAMETABLE[name]
+        return name
+
+    def mapped_load_global(self):
+        module = mapname(self.readline()[:-1])
+        name = mapname(self.readline()[:-1])
+        klass = self.find_class(module, name)
+        self.append(klass)
+
+    unpickler = pickle.Unpickler(fileobj)
+    unpickler.dispatch[pickle.GLOBAL] = mapped_load_global
+    return unpickler.load()
+
+
 if __name__ == '__main__':
     # Load any passed source libraries
-    execfile('source.py')
+    import source
+    os.environ['IS_PYCCC_JOB'] = '1'
     try:
-
         # Read in the packaged function
         with open('function.pkl', 'r') as pf:
-            job = cp.load(pf)
+            job = unpickle_with_remap(pf)
+
         if hasattr(job, 'func_name'):
-            func = globals()[job.func_name]
+            func = getattr(source, job.func_name)
         else:
             func = None
 
@@ -48,3 +86,5 @@ if __name__ == '__main__':
             cp.dump(exc, excfile)
         with open('traceback.txt', 'w') as tbfile:
             tb.print_exc(file=tbfile)
+
+

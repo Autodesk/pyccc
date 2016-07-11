@@ -70,11 +70,25 @@ class CloudComputeCannon(EngineBase):
     def submit(self, job):
         # TODO: inherit docstring
         self._check_job(job)
+
+        cmdstring = ['CCC_WORKDIR_=`pwd`']
+
+        if job.inputs:
+            cmdstring = ['cp /inputs * .'] + cmdstring
+
+        if isinstance(job.command, basestring):
+            cmdstring.append(job.command)
+        else:
+            cmdstring.append(' '.join(job.command))
+
+        cmdstring.append('cd $CCC_WORKDIR && cp -r * /outputs 2>/dev/null')
+
         returnval = self.proxy.submitjob(image=job.image,
-                                         command=job.command,
+                                         command=['sh', '-c', ' && '.join(cmdstring)],
                                          inputs=job.inputs,
                                          cpus=job.numcpus,  # how is this the "minimum"?
-                                         maxDuration=1000*job.runtime)
+                                         maxDuration=1000*job.runtime,
+                                         workDir='/workingdir')
 
         job.jobid = returnval['jobId']
         job._result_json = None
@@ -104,5 +118,7 @@ class CloudComputeCannon(EngineBase):
         return stdout, stderr
 
     def _list_output_files(self, job):
-        result_json = self._get_result_json(job)
-        output_url = self.base_url + 'SJSo15ff/outputs/'
+        results = self._get_result_json(job)
+        output_files = {fname: files.HttpContainer(results['outputsBaseUrl']+'/'+fname)
+                        for fname in results['outputs']}
+        return output_files

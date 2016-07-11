@@ -17,27 +17,30 @@ Functions to that allow python commands to be run as jobs with the platform API
 import cPickle as cp
 import inspect
 
-import sys
-
 import pyccc
-import pyccc.utils as utils
 from pyccc import job
 from pyccc import source_inspections as src
 from pyccc.files import StringContainer, LocalFile
 
-__all__ = 'PythonCall PythonLauncher PythonJob ProgramFailure'.split()
+
+def exports(o):
+    __all__.append(o.__name__)
+    return o
+__all__ = []
 
 
 PYTHON_JOB_FILE = LocalFile('%s/static/run_job.py' % pyccc.PACKAGE_PATH)
 
+
 class ProgramFailure(Exception): pass
 
 
+@exports
 class PythonCall(object):
-    def __init__(self, function, args=None, kwargs=None):
+    def __init__(self, function, *args, **kwargs):
         self.function = function
-        self.args = args if args is not None else []
-        self.kwargs = kwargs if kwargs is not None else {}
+        self.args = args if args else []
+        self.kwargs = kwargs if kwargs else {}
 
         try:
             temp = function.im_self.__class__
@@ -46,26 +49,8 @@ class PythonCall(object):
         else:
             self.is_instancemethod = True
 
-    def __call__(self):
-        return self.function(self.args, self.kwargs)
 
-
-class PythonLauncher(job.Launcher):
-    # @utils.doc_inherit
-    def __init__(self, *args, **kwargs):
-        super(PythonLauncher, self).__init__(*args, **kwargs)
-        self.create_job = PythonJob
-
-    def __call__(self, func, *args, **kwargs):
-        command = PythonCall(func, args, kwargs)
-        return super(PythonLauncher, self).__call__(command)
-
-    def prepare(self, func, *args, **kwargs):
-        """TODO: merge prepare and __call__ with a descriptor"""
-        command = PythonCall(func, args, kwargs)
-        return super(PythonLauncher, self).prepare(command)
-
-
+@exports
 class PythonJob(job.Job):
     SHELL_COMMAND = 'python2 run_job.py'
 
@@ -76,6 +61,7 @@ class PythonJob(job.Job):
         self._exception = None
         self._traceback = None
         self.sendsource = sendsource
+        self._function_result = None
 
         self.function_call = command
 
@@ -110,8 +96,11 @@ class PythonJob(job.Job):
 
     def _get_source(self):
         """
-        Calls the approriate source inspection to get any requires source code
-        :return: string containing source code
+        Calls the appropriate source inspection to get any required source code
+
+        Returns:
+             str: string containing source code. If the relevant code is unicode, it will be
+             encoded as utf-8, with the encoding declared in the first line of the file
         """
         if self.sendsource:
             func = self.function_call.function
@@ -119,20 +108,37 @@ class PythonJob(job.Job):
                 obj = func.im_self.__class__
             else:
                 obj = func
-            return src.getsource(obj)
+            srclines = src.getsource(obj)
         elif self.function_call.is_instancemethod:
-            return ''
+            srclines = ''
         else:
-            return "from %s import %s\n" % (self.function_call.function.__module__,
-                                            self.function_call.function.__name__)
+            srclines = "from %s import %s\n" % (self.function_call.function.__module__,
+                                                self.function_call.function.__name__)
+
+        # This is the only source code needed from pyccc
+        srclines += PACKAGEDFUNCTIONSOURCE
+
+        if isinstance(srclines, unicode):
+            srclines = '# -*- coding: utf-8 -*-\n' + srclines.encode('utf-8')
+        return srclines
 
     @property
     def result(self):
+        """The return value of the callback function if provided, or ``self.function_result`` if not
         """
-        Python function's return value.
-        Will re-raise any exceptions raised remotely
+        self._finish_job()
+
+        if self.when_finished is None:
+            return self.function_result
+        else:
+            return self._callback_result
+
+    @property
+    def function_result(self):
+        """ The return value of the called python function
         """
-        if self._callback_result is None:
+        self._finish_job()
+        if self._function_result is None:
             self.reraise_remote_exception(force=True)  # there's no result to return
             try:
                 returnval = self.get_output('_function_return.pkl')
@@ -142,12 +148,6 @@ class PythonJob(job.Job):
                                      'environment.')
             self._callback_result = cp.loads(returnval.read())
         return self._callback_result
-
-    def finish(self):
-        self.wait()
-        sys.stderr.write(self.stderr)
-        sys.stdout.write(self.stdout)
-        return self.result
 
     @property
     def updated_object(self):
@@ -217,7 +217,7 @@ class PackagedFunction(object):
         closure = src.getclosurevars(func)
         if closure.nonlocals:
             raise TypeError("Can't launch a job with closure variables: %s"%
-                            closure.nonlocals.keys() )
+                            closure.nonlocals.keys())
         self.global_closure = {}
         self.global_modules = {}
         for name, value in closure.globals.iteritems():
@@ -255,3 +255,5 @@ class PackagedFunction(object):
         for name, value in self.global_closure.iteritems():
             to_run.func_globals[name] = value
         return to_run
+
+PACKAGEDFUNCTIONSOURCE = '\n' + src.getsource(PackagedFunction)

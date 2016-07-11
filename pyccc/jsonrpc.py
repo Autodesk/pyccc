@@ -50,7 +50,6 @@ class JsonRpcProxy(object):
     def __dir__(self):
         return self.__dict__.keys() + self._funcnames
 
-
     def __getattr__(self, *args):
         host = self.host
         method = args[0]
@@ -74,7 +73,6 @@ class JsonRpcProxy(object):
             response = None
             if files:
                 # Add the JSON-RPC message to the multipart message
-                # WARNING! This is not yet supported by the server JSON-RPC handlers in this library
                 fileParts = {'jsonrpc': ('jsonrpc', json.dumps(jsonRpcRequest))}
                 for key, value in files.iteritems():
                     fileParts[key] = (key, value, 'application/octet-stream')
@@ -82,7 +80,10 @@ class JsonRpcProxy(object):
             else:
                 headers = {'Content-Type': 'application/json-rpc'}
 
-                if self.debug: print jsonRpcRequest
+                if self.debug:
+                    print 'POST to %s' % host
+                    print 'headers:', headers
+                    print 'data:', json.dumps(jsonRpcRequest)
 
                 response = requests.post(host, headers=headers, data=json.dumps(jsonRpcRequest))
 
@@ -94,11 +95,18 @@ class JsonRpcProxy(object):
 
             if 'error' in responseJson:
                 raise ValueError(responseJson['error'])
+
+            if self.debug:
+                try:
+                    print 'link:', 'http://' + host.split('/')[2] + '/' + responseJson['result']['jobId']
+                except KeyError:
+                    pass
             return responseJson['result']
 
         jsonRpcFunction.__doc__ = self._docstrings[method]
         jsonRpcFunction.__signature__ = self._sigs[method]
         return jsonRpcFunction
+
 
 if __name__ == '__main__':
     import sys

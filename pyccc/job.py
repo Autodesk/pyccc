@@ -23,7 +23,11 @@ from pyccc import files
 from pyccc.utils import *
 from pyccc import ui
 
-__all__ = 'Job Launcher'.split()
+def exports(o):
+    __all__.append(o.__name__)
+    return o
+__all__ = []
+
 
 class EngineFunction(object):
     """
@@ -39,8 +43,31 @@ class EngineFunction(object):
         return lambda: func(obj)
 
 
+@exports
 class Job(object):
-    def __init__(self, engine, image, command,
+    """ Specification for a computational job.
+
+    This class is mainly a data container that can interact with the computational engines.
+
+    Args:
+        engine (pycc.engines.EngineBase): compute engine
+        image (str): docker image to use
+        command (str): command to run in the docker image
+        name (str): name of this job (optional)
+        submit (bool): submit job to engine immediately (default: True if engine and image are
+            both supplied, False otherwise)
+        inputs (Mapping[str,files.FileContainer]): dict containing input file names and their
+            contents (which can be either a FileContainer or just a string)
+        on_status_update (callable): function that can be called as ``func(job)``; will be called
+            locally whenever the job's status field is updated
+        when_finished (callable): function that can be called as ``func(job)``; will be called
+            locally once, when this job completes
+        numcpus (int): number of CPUs required (default:1)
+        runtime (int): kill job if the runtime exceeds this value (in seconds)`
+    """
+    def __init__(self, engine=None,
+                 image=None,
+                 command=None,
                  name='untitled',
                  submit=True,
                  inputs=None,
@@ -50,23 +77,7 @@ class Job(object):
                  runtime=3600,
                  on_status_update=None,
                  when_finished=None):
-        """ Initialization:
 
-        Args:
-            engine (pycc.engines.EngineBase):
-            image (str):
-            command (str):
-            name (str):
-            submit (bool):
-            inputs (dict):
-            on_status_update (callable): function that can be called as ``func(job)``; will be
-                when the job's status field is updated
-            when_finished (callable): function that can be called as ``func(job)``; will be called
-                locally when this job completes
-            numcpus (int): number of CPUs required (default:1)
-            runtime (int): kill job if the runtime exceeds this value (in seconds)`
-
-        """
         self.name = name
         self.engine = engine
         self.image = image
@@ -95,7 +106,7 @@ class Job(object):
         self._output_files = None
         self.jobid = None
 
-        if submit: self.submit()
+        if submit and self.engine and self.image: self.submit()
 
     kill = EngineFunction('kill')
     get_stdout_stream = EngineFunction('get_stdoutstream')
@@ -127,21 +138,21 @@ class Job(object):
         Retreives stdout, stderr, and list of available files
         :return:
         """
+        if self._finished: return
         if self.status != 'finished': raise JobStillRunning()
         self._output_files = self.engine._list_output_files(self)
-        self._final_stdout,self._final_stderr = self.engine._get_final_stds(self)
+        self._final_stdout, self._final_stderr = self.engine._get_final_stds(self)
         self._finished = True
         if self.when_finished is not None:
             self._callback_result = self.when_finished(self)
 
-    def finish(self):
+    @property
+    def result(self):
         """
-        Wait for job to finish, then transfer stdout and stderr to this terminal.
-        Return the result of any callback
+        Returns:
+            Result of the callback function, if present, otherwise none.
         """
-        self.wait()
-        sys.stderr.write(self.stderr)
-        sys.stdout.write(self.stdout)
+        if not self._finished: self._finish_job()
         return self._callback_result
 
     @property
@@ -169,38 +180,7 @@ class Job(object):
         from ui import JobStatusDisplay
         return JobStatusDisplay(self)
 
-
-class Launcher(object):  # DELETE?
-    # @utils.argsfrom(Job.__init__, allexcept=['command'])
-    def __init__(self, engine, image, **kwargs):
-        self.engine = engine
-        self.image = image
-        self.kwargs = kwargs
-        self.prepared = Queue()
-        self.launched = []
-        self.create_job = Job
-
-    # @utils.argsfrom(Job.__init__, only=['command'])
-    def __call__(self, command):
-        """Submit a command to the specified engine and image"""
-        job = self.create_job(self.engine,
-                              self.image, command,
-                              **self.kwargs)
-        self.launched.append(job)
-        return job
-
-    # @utils.argsfrom(Job.__init__, only=['command'])
-    def prepare(self, command):
-        """Prepare a job object but do not submit it."""
-        mod_kwargs = self.kwargs.copy()
-        mod_kwargs['submit'] = False
-        job = self.create_job(self.engine,
-                              self.image,command,
-                              **mod_kwargs)
-        self.prepared.put(job)
-        return job
-
-
+@exports
 class JobStillRunning(Exception):
     pass
 

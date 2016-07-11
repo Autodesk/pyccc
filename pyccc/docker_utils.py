@@ -76,7 +76,6 @@ def make_tar_stream(sdict):
     TODO: don't do this in memory
     :return: TarFile stream (file-like object)
     """
-
     tarbuffer = io.BytesIO()
     tf = tarfile.TarFile(fileobj=tarbuffer, mode='w')
     for name, fileobj in sdict.iteritems():
@@ -87,6 +86,14 @@ def make_tar_stream(sdict):
 
 
 def tar_add_string(tf, filename, string):
+    # This one function has given me a huge amount of trouble around formatting unicode strings.
+    # The only real solution is to have everything in bytes by the time it gets here - no unicode
+    #    objects allowed.
+    # Some notes:
+    # 1. the io module is python 3 centric, so io.BytesIO=str and io.StringIO=unicode
+    # 2. If we just have a unicode string, there's NO WAY to determine what encoding is expected.
+    # 3. The TarFile.addfile method appears to require a str (i.e., BytesIO) buffer. Everything
+    #    needs to be encoded as bytes, not unicode, before we tar it up
     buff = io.BytesIO(string)
     tarinfo = tarfile.TarInfo(filename)
     tarinfo.size = len(string)

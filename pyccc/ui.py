@@ -68,8 +68,7 @@ class FileBrowser(ipy.Tab):
             ignore_ext = 'pyo pyc'.split()
 
         titles = []
-        file_list = []
-        file_list.append(ipy.Box())
+        file_list = [ipy.Box()]
         ignores = set(ignore_ext)
         for filename, fileobj in file_dict.iteritems():
             ext = filename.split('.')[-1]
@@ -89,7 +88,7 @@ class FileView(ipy.Box):
     CHUNK = 10000
     TRUNCATE_MESSAGE = '... [click "See more" to continue]'
     TEXTAREA_KWARGS = dict(font_family='monospace',
-                           width=800,
+                           width='100%',
                            disabled=True)
 
     def __init__(self, fileobj, **kwargs):
@@ -114,14 +113,14 @@ class FileView(ipy.Box):
             self.render_string()
 
     def render_string(self):
-        height = min(self._string.count('\n') * 16 + 36, 600)
+        height = '%spx' % min(self._string.count('\n') * 16 + 36, 600)
         try:
             self.textarea = ipy.Textarea(self._string[:self.CHUNK],
                                          height=height,
                                          **self.TEXTAREA_KWARGS)
         except traitlets.TraitError:
             self.textarea = ipy.Textarea('[NOT SHOWN - UNABLE TO DECODE FILE]',
-                                         height=400,
+                                         height='300px',
                                          **self.TEXTAREA_KWARGS)
             return
         finally:
