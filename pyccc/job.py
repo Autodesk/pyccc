@@ -177,8 +177,11 @@ class Job(object):
 
     def get_display_object(self):
         """Return a jupyter widget"""
-        from ui import JobStatusDisplay
-        return JobStatusDisplay(self)
+        from ui import JobStatusDisplay, widgets_enabled
+        if widgets_enabled:
+            return JobStatusDisplay(self)
+        else:
+            return 'Job "%s" launched. id:%s' % (self.name, self.jobid)
 
 @exports
 class JobStillRunning(Exception):

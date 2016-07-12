@@ -64,6 +64,7 @@ class Docker(EngineBase):
                                                      working_dir=job.workingdir)
         self.client.start(job.container)
         job.containerid = job.container['Id']
+        job.jobid = job.containerid
 
     def wait(self, job):
         self.client.wait(job.container)

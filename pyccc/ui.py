@@ -16,6 +16,13 @@ import traitlets
 
 __all__ = 'JobStatusDisplay'.split()
 
+try:
+    ipy.Text()
+except traitlets.TraitError:
+    widgets_enabled = False
+else:
+    widgets_enabled = True
+
 class JobStatusDisplay(ipy.Box):
     """
     To be mixed into pyccc job objects
