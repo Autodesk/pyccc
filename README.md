@@ -1,38 +1,54 @@
-# PyBioWorkflow
-A high-level python interface for running jobs using bio/nano workflow manager.
+# py-cloud-compute-cannon
+A high-level python interface for running computational jobs using a variety of distributed computing backends.
 
-To run a job:
-1. Specify where the job will run: create a `Provider` instance from the `providers` module:
+
+## Installation
+
+Normal installation:
+```shell
+pip install pyccc
+```
+
+Dev install:
+```shell
+git clone https://github.com/autodesk/py-cloud-compute-cannon
+pip install -e py-cloud-compute-cannon
+```
+
+## Examples
+
+Run a job in a local subprocess:
 ```python
-provider = providers.Subprocess()
-# or maybe
-provider = providers.BioNanoPlatform(host='platform.bionano.autodesk.com')
+>>> engine = pyccc.Subprocess()
+>>>
+>>> engine.launch(command='echo hello world')
+>>> engine.wait()
+>>> engine.stdout
+'hello world\n'
 ```
 
-2. Launch the job:
+Run a python command on a demo cloud server, using the 'python:2.7-slim' docker image:
 ```python
-job = provider.launch('docker_image_name',command,input_files,output_files)
+>>> engine = pyccc.CloudComputeCannon('http://cloudcomputecannon.bionano.autodesk.com:9000')
+>>>
+>>> def add_one_to_it(x): return x+1
+>>> cmd = pyccc.PythonCall(add_one_to_it, 5)
+>>>
+>>> job = engine.launch('python:2.7-slim', cmd)
+>>> job.wait()
+>>> job.result
+6
 ```
 
-Here's how to run a job with the workflow manager.<br>
-To run it locally,  replace `BioNanoPlatform` with `Subprocess`.<br>
-To run it in a docker container, replace `BioNanoPlatform` with `Docker`.
-```python 
-from bioplatform import providers, files
-provider = providers.BioNanoPlatform(host='platform.bionano.autodesk.com:8080')
-input_files = {'myfile.txt': files.StringContainer('abc123','tempname') }
-job = provider.launch('ubuntu',
-                     'cp -v myfile.txt newfile.txt && echo done!',
-                     inputs=input_files)
+## Contributing
+`pyccc` is developed and maintained by the [Molecular Design Toolkit](https://github.com/autodesk/molecular-design-toolkit) project. Please see that project's [CONTRIBUTING document](https://github.com/autodesk/molecular-design-toolkit/CONTRIBUTING.md) for details.
 
-job.wait()
-print job.stdout 
-#prints:
-#  >myfile.txt -> newfile.txt
-#  >done!
 
-print job.get_output('newfile.txt').contents.strip()
-#prints:
-#  >abc123
-```
+## License
 
+Copyright 2016 Autodesk Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.

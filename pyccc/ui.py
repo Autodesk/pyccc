@@ -11,12 +11,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import ipywidgets as ipy
-import traitlets
+from pyccc import status
+
+try:
+    import ipywidgets as ipy
+    import traitlets
+except ImportError:
+    widgets_enabled = False
+    ipy = traitlets = None
+    Box = Tab = object
+else:
+    widgets_enabled = True
+    from ipywidgets import Box, Tab
+
 
 __all__ = 'JobStatusDisplay'.split()
 
-class JobStatusDisplay(ipy.Box):
+if widgets_enabled:
+    try:
+        ipy.Text()
+    except traitlets.TraitError:
+        widgets_enabled = False
+    else:
+        widgets_enabled = True
+
+class JobStatusDisplay(Box):
     """
     To be mixed into pyccc job objects
     """
@@ -62,14 +81,13 @@ class JobStatusDisplay(ipy.Box):
             self.children = [status_display, update_button, file_browser]
 
 
-class FileBrowser(ipy.Tab):
+class FileBrowser(Tab):
     def __init__(self, file_dict, ignore_ext=None, **kwargs):
         if ignore_ext is None:
             ignore_ext = 'pyo pyc'.split()
 
         titles = []
-        file_list = []
-        file_list.append(ipy.Box())
+        file_list = [ipy.Box()]
         ignores = set(ignore_ext)
         for filename, fileobj in file_dict.iteritems():
             ext = filename.split('.')[-1]
@@ -85,11 +103,11 @@ class FileBrowser(ipy.Tab):
         self.selected_index = -1
 
 
-class FileView(ipy.Box):
+class FileView(Box):
     CHUNK = 10000
     TRUNCATE_MESSAGE = '... [click "See more" to continue]'
     TEXTAREA_KWARGS = dict(font_family='monospace',
-                           width=800,
+                           width='75%',
                            disabled=True)
 
     def __init__(self, fileobj, **kwargs):
@@ -114,14 +132,14 @@ class FileView(ipy.Box):
             self.render_string()
 
     def render_string(self):
-        height = min(self._string.count('\n') * 16 + 36, 600)
+        height = '%spx' % min(self._string.count('\n') * 16 + 36, 600)
         try:
             self.textarea = ipy.Textarea(self._string[:self.CHUNK],
                                          height=height,
                                          **self.TEXTAREA_KWARGS)
         except traitlets.TraitError:
             self.textarea = ipy.Textarea('[NOT SHOWN - UNABLE TO DECODE FILE]',
-                                         height=400,
+                                         height='300px',
                                          **self.TEXTAREA_KWARGS)
             return
         finally:
@@ -155,7 +173,7 @@ class FileView(ipy.Box):
         self.render_string()
 
 
-class StatusView(ipy.Box):
+class StatusView(Box):
     STATUS_STRING = ('<h5>Job: %s</h5>'
                      '<b>Provider:</b> %s<br>'
                      '<b>Image: </b>%s<br>'
@@ -172,11 +190,11 @@ class StatusView(ipy.Box):
                                               job.image,
                                               job.command,
                                               job.status))
-        if job.status == 'queued':
+        if job.status == status.QUEUED:
             bar_spec = dict(value=1, bar_style='danger')
-        elif job.status == 'running':
+        elif job.status == status.RUNNING:
             bar_spec = dict(value=50, bar_style='info')
-        elif job.status == 'finished':
+        elif job.status == status.FINISHED:
             bar_spec = dict(value=100, bar_style='success')
         else:
             bar_spec = dict(value=100, bar_style='danger')

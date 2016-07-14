@@ -79,25 +79,26 @@ def getsource(classorfunc):
 
 
 def getsourcefallback(cls):
-    """
-    Fallback for getting the source of interactively defined classes.
+    """ Fallback for getting the source of interactively defined classes (typically in ipython)
+
     This is basically just a patched version of the inspect module, in which
     we get the code by calling inspect.findsource on an *instancemethod* of
     a class for which inspect.findsource fails.
     """
     for attr in cls.__dict__:
-        if inspect.ismethod( getattr(cls,attr)):
-            imethod = getattr(cls,attr)
+        if inspect.ismethod(getattr(cls, attr)):
+            imethod = getattr(cls, attr)
             break
     else:
-        raise AttributeError("This class doesn't have an instance method, create one to cloudify it")
+        raise AttributeError(
+            "This class doesn't have an instance method, create one to cloudify it")
 
     ### This part is derived from inspect.findsource ###
     module = inspect.getmodule(cls)
     file = inspect.getfile(imethod)
     lines = linecache.getlines(file, module.__dict__)
     name = cls.__name__
-    pat = re.compile(r'^(\s*)class\s*' + name + r'\b')
+    pat = re.compile(r'^(\s*)class\s*'+name+r'\b')
 
     # make some effort to find the best matching class definition:
     # use the one with the least indentation, which is the one
@@ -109,7 +110,7 @@ def getsourcefallback(cls):
         if match:
             # if it's at toplevel, it's already the best one
             if lines[i][0] == 'c':
-                flines,flnum = lines, i
+                flines, flnum = lines, i
                 toplevel = True
                 break
             # else add whitespace to candidate list
@@ -118,7 +119,7 @@ def getsourcefallback(cls):
         # this will sort by whitespace, and by line number,
         # less whitespace first
         candidates.sort()
-        flines,flnum = lines, candidates[0][1]
+        flines, flnum = lines, candidates[0][1]
     elif not candidates and not toplevel:
         raise IOError('could not find class definition')
     ### end modified inspect.findsource ###

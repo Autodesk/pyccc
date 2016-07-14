@@ -45,15 +45,15 @@ def find_package_data(pkgdir):
 setup(
     name=PACKAGE_NAME,
     version=versioneer.get_version(),
-    classifiers=CLASSIFIERS.split('\n'),
+    classifiers=CLASSIFIERS.splitlines(),
     packages=find_packages(),
     package_data={PACKAGE_NAME: find_package_data(PACKAGE_NAME)},
     cmdclass=versioneer.get_cmdclass(),
     install_requires=requirements,
-    url='http://autodeskresearch.com',
+    url='http://github.com/autodesk/py-cloud-compute-cannon',
     license='Apache 2.0',
-    author='Aaron Virshup',
-    author_email='aaron.virshup [at] autodesk [dot] com',
-    description='Py-Cloud-Compute-Cannon: Python bindings for CloudComputeCannon (with support for other computational '
+    author='Aaron Virshup and Dion Amago, BioNano Research at Autodesk',
+    author_email='moleculardesigntoolkit@autodesk.com',
+    description='PyCloudComputeCannon: Python bindings for CloudComputeCannon (with support for other computational '
                 'engines)'
 )
