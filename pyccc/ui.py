@@ -19,8 +19,10 @@ try:
 except ImportError:
     widgets_enabled = False
     ipy = traitlets = None
+    Box = Tab = object
 else:
     widgets_enabled = True
+    from ipywidgets import Box, Tab
 
 
 __all__ = 'JobStatusDisplay'.split()
@@ -33,7 +35,7 @@ if widgets_enabled:
     else:
         widgets_enabled = True
 
-class JobStatusDisplay(ipy.Box):
+class JobStatusDisplay(Box):
     """
     To be mixed into pyccc job objects
     """
@@ -79,7 +81,7 @@ class JobStatusDisplay(ipy.Box):
             self.children = [status_display, update_button, file_browser]
 
 
-class FileBrowser(ipy.Tab):
+class FileBrowser(Tab):
     def __init__(self, file_dict, ignore_ext=None, **kwargs):
         if ignore_ext is None:
             ignore_ext = 'pyo pyc'.split()
@@ -101,7 +103,7 @@ class FileBrowser(ipy.Tab):
         self.selected_index = -1
 
 
-class FileView(ipy.Box):
+class FileView(Box):
     CHUNK = 10000
     TRUNCATE_MESSAGE = '... [click "See more" to continue]'
     TEXTAREA_KWARGS = dict(font_family='monospace',
@@ -171,7 +173,7 @@ class FileView(ipy.Box):
         self.render_string()
 
 
-class StatusView(ipy.Box):
+class StatusView(Box):
     STATUS_STRING = ('<h5>Job: %s</h5>'
                      '<b>Provider:</b> %s<br>'
                      '<b>Image: </b>%s<br>'
