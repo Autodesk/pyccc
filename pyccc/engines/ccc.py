@@ -11,12 +11,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import time
 
-from pyccc import files
+from pyccc import files, status
 from . import EngineBase
 
+class TimeoutError(Exception): pass
 
 class CloudComputeCannon(EngineBase):
+
+    # translate CCC commands into
+    STATUSES = {'pending': status.QUEUED,
+                'copying_image': status.DOWNLOADING,
+                'container_running': status.RUNNING,
+                'finished_working': status.RUNNING,
+                'copying_logs': status.FINISHING,
+                'finished': status.FINISHED,
+                'cancelled': status.KILLED,
+                'failed': status.ERROR
+                }
+
     def __reduce__(self):
         """Pickling helper - returns arguments to reinitialize this object"""
         return CloudComputeCannon, (self.host, False)
@@ -94,12 +108,26 @@ class CloudComputeCannon(EngineBase):
         job._result_json = None
 
     def get_status(self, job):
-        # Pending|Working|Finalizing|Finished
         response = self.proxy.job(command='status', jobId=[job.jobid])
-        return response[job.jobid]
+        stat = self.STATUSES[response[job.jobid]]
+        return stat
 
     def wait(self, job):
-        raise NotImplementedError()
+        # TODO: don't poll!
+        polltime = 1  # start out polling every second
+        wait_time = 0
+        run_time = 0
+        while job.status not in status.DONE_STATES:
+            time.sleep(polltime)
+            wait_time += polltime
+            if job.status == status.RUNNING:
+                run_time += polltime
+            if run_time > job.runtime:
+                raise TimeoutError('Job timed out - status "%s"' % job.status)
+            if wait_time > 1000: polltime = 60
+            elif wait_time > 100: polltime = 20
+            elif wait_time > 10: polltime = 5
+
 
     def _get_result_json(self, job):
         if job._result_json is None:

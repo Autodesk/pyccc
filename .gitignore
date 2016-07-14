@@ -3,3 +3,5 @@
 .idea
 /dist
 /build
+/pyccc.egg-info
+_docker_make_tmp

@@ -16,7 +16,7 @@ import os
 import subprocess
 
 from pyccc import utils as utils, files
-from . import EngineBase
+from . import EngineBase, status
 
 
 class Subprocess(EngineBase):
@@ -27,9 +27,9 @@ class Subprocess(EngineBase):
 
     def get_status(self, job):
         if job.subproc.poll() is None:
-            return 'running'
+            return status.RUNNING
         else:
-            return 'finished'
+            return status.FINISHED
 
     def get_engine_description(self, job):
         """
@@ -37,17 +37,24 @@ class Subprocess(EngineBase):
         """
         return 'Local subprocess %s' % job.subproc.pid
 
+    def launch(self, image=None, command=None,  **kwargs):
+        if command is None:
+            command = image
+        return super(Subprocess, self).launch('no_image', command, **kwargs)
+
     def submit(self, job):
         self._check_job(job)
         job.workingdir = utils.make_local_temp_dir()
-        for filename, file in job.inputs.iteritems():
-            file.put('%s/%s' % (job.workingdir, filename))
+        if job.inputs:
+            for filename, file in job.inputs.iteritems():
+                file.put('%s/%s' % (job.workingdir, filename))
 
         job.subproc = subprocess.Popen(job.command,
                                        shell=True,
                                        cwd=job.workingdir,
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE)
+        job.jobid = job.subproc
         job._started = True
         return job.subproc.pid
 

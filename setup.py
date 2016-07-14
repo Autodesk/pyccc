@@ -54,6 +54,6 @@ setup(
     license='Apache 2.0',
     author='Aaron Virshup and Dion Amago, BioNano Research at Autodesk',
     author_email='moleculardesigntoolkit@autodesk.com',
-    description='PyCloudComputeCCannon: Python bindings for CloudComputeCannon (with support for other computational '
+    description='PyCloudComputeCannon: Python bindings for CloudComputeCannon (with support for other computational '
                 'engines)'
 )

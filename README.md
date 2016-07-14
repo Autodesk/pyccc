@@ -4,7 +4,44 @@ A high-level python interface for running computational jobs using a variety of 
 
 ## Installation
 
-    $ pip install pyccc
+Normal installation:
+```shell
+pip install pyccc
+```
+
+Dev install:
+```shell
+git clone https://github.com/autodesk/py-cloud-compute-cannon
+pip install -e py-cloud-compute-cannon
+```
+
+## Examples
+
+Run a job in a local subprocess:
+```python
+>>> engine = pyccc.Subprocess()
+>>>
+>>> engine.launch(command='echo hello world')
+>>> engine.wait()
+>>> engine.stdout
+'hello world\n'
+```
+
+Run a python command on a demo cloud server, using the 'python:2.7-slim' docker image:
+```python
+>>> engine = pyccc.CloudComputeCannon('http://cloudcomputecannon.bionano.autodesk.com:9000')
+>>>
+>>> def add_one_to_it(x): return x+1
+>>> cmd = pyccc.PythonCall(add_one_to_it, 5)
+>>>
+>>> job = engine.launch('python:2.7-slim', cmd)
+>>> job.wait()
+>>> job.result
+6
+```
+
+## Contributing
+`pyccc` is developed and maintained by the [Molecular Design Toolkit](https://github.com/autodesk/molecular-design-toolkit) project. Please see that project's [CONTRIBUTING document](https://github.com/autodesk/molecular-design-toolkit/CONTRIBUTING.md) for details.
 
 
 ## License

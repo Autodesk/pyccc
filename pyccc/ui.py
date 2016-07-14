@@ -11,17 +11,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import ipywidgets as ipy
-import traitlets
+from pyccc import status
+
+try:
+    import ipywidgets as ipy
+    import traitlets
+except ImportError:
+    widgets_enabled = False
+    ipy = traitlets = None
+else:
+    widgets_enabled = True
+
 
 __all__ = 'JobStatusDisplay'.split()
 
-try:
-    ipy.Text()
-except traitlets.TraitError:
-    widgets_enabled = False
-else:
-    widgets_enabled = True
+if widgets_enabled:
+    try:
+        ipy.Text()
+    except traitlets.TraitError:
+        widgets_enabled = False
+    else:
+        widgets_enabled = True
 
 class JobStatusDisplay(ipy.Box):
     """
@@ -178,11 +188,11 @@ class StatusView(ipy.Box):
                                               job.image,
                                               job.command,
                                               job.status))
-        if job.status == 'queued':
+        if job.status == status.QUEUED:
             bar_spec = dict(value=1, bar_style='danger')
-        elif job.status == 'running':
+        elif job.status == status.RUNNING:
             bar_spec = dict(value=50, bar_style='info')
-        elif job.status == 'finished':
+        elif job.status == status.FINISHED:
             bar_spec = dict(value=100, bar_style='success')
         else:
             bar_spec = dict(value=100, bar_style='danger')

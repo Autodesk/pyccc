@@ -71,6 +71,12 @@ class EngineBase(object):
         """
         raise NotImplementedError()
 
+    def get_status(self, job):
+        """
+        Return a valid job status value from pyccc.status
+        """
+        raise NotImplementedError()
+
     def get_stdoutstream(self, job):
         """
         Return a stream for the stdout

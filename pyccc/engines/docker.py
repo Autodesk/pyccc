@@ -14,7 +14,7 @@
 import docker
 from pyccc import docker_utils as du
 from pyccc import utils, files
-from . import EngineBase
+from . import EngineBase, status
 
 
 class Docker(EngineBase):
@@ -75,9 +75,9 @@ class Docker(EngineBase):
     def get_status(self, job):
         inspect = self.client.inspect_container(job.containerid)
         if inspect['State']['Running']:
-            return 'running'
+            return status.RUNNING
         else:
-            return 'finished'
+            return status.FINISHED
 
     def _list_output_files(self, job):
         docker_diff = self.client.diff(job.container)
