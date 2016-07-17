@@ -54,7 +54,7 @@ class JobStatusDisplay(Box):
         self.on_displayed(self.update)
 
     def update(self, *args):
-        status = self._job.status
+        jobstat = self._job.status
         status_display = StatusView(self._job)
         if self._job.inputs:
             input_browser = FileBrowser(self._job.inputs, margin=5, font_size=9)
@@ -64,7 +64,7 @@ class JobStatusDisplay(Box):
         file_browser.set_title(0, 'Input files')
         file_browser.selected_index = -1
 
-        if status == 'finished':
+        if jobstat == status.FINISHED:
             output_files = self._job.get_output()
             if self._job.stdout:
                 output_files['Standard output'] = self._job.stdout
