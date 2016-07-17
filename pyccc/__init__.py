@@ -14,6 +14,7 @@
 import os as _os
 PACKAGE_PATH = _os.path.dirname(_os.path.abspath(__file__))
 
+from pyccc.exceptions import *
 from pyccc.job import *
 from pyccc.python import *
 from pyccc.engines import *

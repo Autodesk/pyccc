@@ -176,6 +176,7 @@ class FileView(Box):
 class StatusView(Box):
     STATUS_STRING = ('<h5>Job: %s</h5>'
                      '<b>Provider:</b> %s<br>'
+                     '<b>JobId:</b> %s<br>'
                      '<b>Image: </b>%s<br>'
                      '<b>Command: </b>%s<br>'
                      '<b>Status:</b> %s</font>')
@@ -186,7 +187,8 @@ class StatusView(Box):
         super(StatusView,self).__init__(**kwargs)
         self._job = job
         text = ipy.HTML(self.STATUS_STRING % (job.name,
-                                              job.get_engine_description(),
+                                              str(job.engine),
+                                              job.jobid,
                                               job.image,
                                               job.command,
                                               job.status))

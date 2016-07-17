@@ -20,6 +20,7 @@ import inspect
 import pyccc
 from pyccc import job
 from pyccc import source_inspections as src
+from pyccc.exceptions import ProgramFailure
 from pyccc.files import StringContainer, LocalFile
 
 
@@ -30,9 +31,6 @@ __all__ = []
 
 
 PYTHON_JOB_FILE = LocalFile('%s/static/run_job.py' % pyccc.PACKAGE_PATH)
-
-
-class ProgramFailure(Exception): pass
 
 
 @exports

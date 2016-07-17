@@ -13,19 +13,21 @@
 # limitations under the License.
 import time
 
+import pyccc
 from pyccc import files, status
 from . import EngineBase
-
-class TimeoutError(Exception): pass
 
 class CloudComputeCannon(EngineBase):
 
     # translate CCC commands into
     STATUSES = {'pending': status.QUEUED,
                 'copying_image': status.DOWNLOADING,
+                'copying_inputs': status.DOWNLOADING,
                 'container_running': status.RUNNING,
                 'finished_working': status.RUNNING,
                 'copying_logs': status.FINISHING,
+                'copying_outputs': status.FINISHING,
+                'finalizing': status.FINISHING,
                 'finished': status.FINISHED,
                 'cancelled': status.KILLED,
                 'failed': status.ERROR
@@ -33,7 +35,7 @@ class CloudComputeCannon(EngineBase):
 
     def __reduce__(self):
         """Pickling helper - returns arguments to reinitialize this object"""
-        return CloudComputeCannon, (self.host, False)
+        return CloudComputeCannon, (self.hostname, False)
 
     def __init__(self, url, testconnection=True):
         """ Connect to the server
@@ -67,8 +69,9 @@ class CloudComputeCannon(EngineBase):
         Returns:
             bool: True (otherwise, raises exception)
         """
-        result = self.proxy.test(echo='check12')
-        assert result.strip() == 'check12check12'
+        result = self.proxy.test_rpc(echo='check12')
+        result.strip() == 'check12check12'
+        raise pyccc.EngineTestError(self)
 
     def get_engine_description(self, job):
         """ Return a text description of a job
@@ -79,13 +82,13 @@ class CloudComputeCannon(EngineBase):
         Returns:
             str: text description
         """
-        return 'Job ID %s on %s' % (job.jobid, self.host)
+        return 'Job ID %s on %s' % (job.jobid, self.hostname)
 
     def submit(self, job):
         # TODO: inherit docstring
         self._check_job(job)
 
-        cmdstring = ['CCC_WORKDIR_=`pwd`']
+        cmdstring = ['export CCC_WORKDIR=`pwd`']
 
         if job.inputs:
             cmdstring = ['cp /inputs * .'] + cmdstring
@@ -107,6 +110,10 @@ class CloudComputeCannon(EngineBase):
         job.jobid = returnval['jobId']
         job._result_json = None
 
+    def kill(self, job):
+        response = self.proxy.job(command='kill', jobId=[job.jobid])
+        return response
+
     def get_status(self, job):
         response = self.proxy.job(command='status', jobId=[job.jobid])
         stat = self.STATUSES[response[job.jobid]]
@@ -123,7 +130,7 @@ class CloudComputeCannon(EngineBase):
             if job.status == status.RUNNING:
                 run_time += polltime
             if run_time > job.runtime:
-                raise TimeoutError('Job timed out - status "%s"' % job.status)
+                raise pyccc.JobTimeoutError('Job timed out - status "%s"' % job.status)
             if wait_time > 1000: polltime = 60
             elif wait_time > 100: polltime = 20
             elif wait_time > 10: polltime = 5

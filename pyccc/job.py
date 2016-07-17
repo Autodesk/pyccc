@@ -14,12 +14,10 @@
 """
 Low-level API functions. These are the actual REST interactions with the workflow server.
 """
-import sys
-
 from pyccc import files, status
 
 from pyccc.utils import *
-from pyccc import ui
+
 
 def exports(o):
     __all__.append(o.__name__)
@@ -89,7 +87,6 @@ class Job(object):
                 else:
                     self.inputs[filename] = fileobj
 
-        self.outputs = if_not_none(outputs, [])
         self.requirements = if_not_none(requirements, {})
         self.on_status_update = on_status_update
         self.when_finished = when_finished
@@ -113,6 +110,19 @@ class Job(object):
     _get_final_stds = EngineFunction('_get_final_stds')
     _list_output_files = EngineFunction('_list_output_files')
 
+    def __str__(self):
+        desc = "%s" % self.status
+        if self.engine is not None: desc += " on %s engine" % type(self.engine).__name__
+        return "Job '%s' (%s)" % (self.name, desc)
+
+    def __repr__(self):
+        if self.jobid:
+            return '<%s "%s": (%s) on %s>' % (type(self).__name__, self.name,
+                                              self.jobid, self.engine)
+
+        else:
+            return '<Unsubmitted %s (%s) at %s>' % (type(self).__name__, self.name, hex(id(self)))
+
     def submit(self, block=False):
         self.engine.submit(self)
         if block: self.wait()
@@ -128,7 +138,10 @@ class Job(object):
         """
         Returns status of 'queued', 'running', 'finished' or 'error'
         """
-        return self.engine.get_status(self)
+        if self.jobid:
+            return self.engine.get_status(self)
+        else:
+            return "Unsubmitted"
 
     def _finish_job(self):
         """
@@ -181,9 +194,6 @@ class Job(object):
         else:
             return 'Job "%s" launched. id:%s' % (self.name, self.jobid)
 
-@exports
-class JobStillRunning(Exception):
-    pass
 
 
 

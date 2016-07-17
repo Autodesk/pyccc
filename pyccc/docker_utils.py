@@ -20,6 +20,8 @@ import io
 import tarfile
 from StringIO import StringIO
 
+from .exceptions import DockerMachineError
+
 
 def create_provisioned_image(client, image, wdir, inputs, pull=False):
     build_context = create_build_context(image, inputs, wdir)
@@ -102,7 +104,11 @@ def tar_add_string(tf, filename, string):
 
 
 def docker_machine_env(machine_name):
-    stdout = subprocess.check_output(['docker-machine', 'env', machine_name])
+    try:
+        stdout = subprocess.check_output(['docker-machine', 'env', machine_name])
+    except (subprocess.CalledProcessError, OSError):
+        raise DockerMachineError('Could not find docker-machine "%s"' % machine_name)
+
     vars = {}
     for line in stdout.split('\n'):
         fields = line.split()
