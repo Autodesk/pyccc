@@ -14,8 +14,8 @@
 """
 Low-level API functions. These are the actual REST interactions with the workflow server.
 """
+import pyccc
 from pyccc import files, status
-
 from pyccc.utils import *
 
 
@@ -111,17 +111,19 @@ class Job(object):
     _list_output_files = EngineFunction('_list_output_files')
 
     def __str__(self):
-        desc = "%s" % self.status
-        if self.engine is not None: desc += " on %s engine" % type(self.engine).__name__
-        return "Job '%s' (%s)" % (self.name, desc)
+        desc = ['Job "%s" status:%s' % (self.name, self.status)]
+        if self.jobid: desc.append('jobid:%s' % self.jobid)
+        if self.engine: desc.append('engine:%s' % type(self.engine).__name__)
+        return ' '.join(desc)
 
     def __repr__(self):
-        if self.jobid:
-            return '<%s "%s": (%s) on %s>' % (type(self).__name__, self.name,
-                                              self.jobid, self.engine)
+        s = str(self)
+        if self.engine:
+            s += ' host:%s' % self.engine.hostname
+        if not self.jobid:
+            s += ' at %s' % hex(id(self))
+        return '<%s>' % s
 
-        else:
-            return '<Unsubmitted %s (%s) at %s>' % (type(self).__name__, self.name, hex(id(self)))
 
     def submit(self, block=False):
         self.engine.submit(self)
@@ -150,7 +152,7 @@ class Job(object):
         :return:
         """
         if self._finished: return
-        if self.status not in status.DONE_STATES: raise JobStillRunning()
+        if self.status not in status.DONE_STATES: raise pyccc.JobStillRunning()
         self._output_files = self.engine._list_output_files(self)
         self._final_stdout, self._final_stderr = self.engine._get_final_stds(self)
         self._finished = True

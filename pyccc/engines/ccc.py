@@ -17,9 +17,9 @@ import pyccc
 from pyccc import files, status
 from . import EngineBase
 
-class CloudComputeCannon(EngineBase):
 
-    # translate CCC commands into
+class CloudComputeCannon(EngineBase):
+    # translate CCC commands into pyccc statuses
     STATUSES = {'pending': status.QUEUED,
                 'copying_image': status.DOWNLOADING,
                 'copying_inputs': status.DOWNLOADING,
@@ -30,6 +30,7 @@ class CloudComputeCannon(EngineBase):
                 'finalizing': status.FINISHING,
                 'finished': status.FINISHED,
                 'cancelled': status.KILLED,
+                'killed': status.KILLED,
                 'failed': status.ERROR
                 }
 
@@ -70,8 +71,8 @@ class CloudComputeCannon(EngineBase):
             bool: True (otherwise, raises exception)
         """
         result = self.proxy.test_rpc(echo='check12')
-        result.strip() == 'check12check12'
-        raise pyccc.EngineTestError(self)
+        if result.strip() != 'check12check12':
+            raise pyccc.EngineTestError(self)
 
     def get_engine_description(self, job):
         """ Return a text description of a job
@@ -88,11 +89,10 @@ class CloudComputeCannon(EngineBase):
         # TODO: inherit docstring
         self._check_job(job)
 
+        # Wraps the main command to copy inputs into working dir and copy outputs out
         cmdstring = ['export CCC_WORKDIR=`pwd`']
-
         if job.inputs:
-            cmdstring = ['cp /inputs * .'] + cmdstring
-
+            cmdstring = ['cp -rf /inputs/* .'] + cmdstring
         if isinstance(job.command, basestring):
             cmdstring.append(job.command)
         else:
@@ -105,7 +105,7 @@ class CloudComputeCannon(EngineBase):
                                          inputs=job.inputs,
                                          cpus=job.numcpus,  # how is this the "minimum"?
                                          maxDuration=1000*job.runtime,
-                                         workDir='/workingdir')
+                                         workingDir='/workingdir')
 
         job.jobid = returnval['jobId']
         job._result_json = None
@@ -135,7 +135,6 @@ class CloudComputeCannon(EngineBase):
             elif wait_time > 100: polltime = 20
             elif wait_time > 10: polltime = 5
 
-
     def _get_result_json(self, job):
         if job._result_json is None:
             job._result_json = self.proxy.job(command='result',
@@ -154,6 +153,9 @@ class CloudComputeCannon(EngineBase):
 
     def _list_output_files(self, job):
         results = self._get_result_json(job)
-        output_files = {fname: files.HttpContainer(results['outputsBaseUrl']+'/'+fname)
+        output_files = {fname: files.HttpContainer('%s%s%s' %
+                                                   (self.base_url,
+                                                    results['outputsBaseUrl'],
+                                                    fname))
                         for fname in results['outputs']}
         return output_files
