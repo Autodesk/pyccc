@@ -59,7 +59,7 @@ def build_dfile_stream(client, dfilestream, is_tar=False, **kwargs):
     # this blocks until the image is done building
     for x in buildcmd: logging.info('building image:%s' % (x.rstrip('\n')))
 
-    result = json.loads(x)
+    result = json.loads(_issue1134_helper(x))
     try:
         reply = result['stream']
     except KeyError:
@@ -70,6 +70,31 @@ def build_dfile_stream(client, dfilestream, is_tar=False, **kwargs):
 
     imageid = reply.split()[2]
     return imageid
+
+
+def _issue1134_helper(x):
+    # workaround for https://github.com/docker/docker-py/issues/1134
+    # docker appears to return two JSONs in a single string. This returns the last one
+    s = x.strip()
+    assert s[0] == '{'
+    num_brace = 1
+    rootbrace = 0
+
+    for ichar in xrange(1,len(s)):
+        char = s[ichar]
+        if char == '}' and s[ichar-1] != '\\':
+            num_brace -= 1
+            if num_brace == 0:
+                endbrace = ichar
+
+        elif char == '{' and s[ichar-1] != '\\':
+            num_brace += 1
+            if num_brace == 1:
+                rootbrace = ichar
+
+    return s[rootbrace: endbrace+1]
+
+
 
 
 def make_tar_stream(sdict):
