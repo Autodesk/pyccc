@@ -31,6 +31,13 @@ class Subprocess(EngineBase):
         else:
             return status.FINISHED
 
+    def test_connection(self):
+        job = self.launch(command='echo check12')
+        job.wait()
+        if job.stdout.strip() != 'check12':
+            raise
+
+
     def get_engine_description(self, job):
         """
         Return a text description for the UI

@@ -14,12 +14,10 @@
 """
 Low-level API functions. These are the actual REST interactions with the workflow server.
 """
-import sys
-
+import pyccc
 from pyccc import files, status
-
 from pyccc.utils import *
-from pyccc import ui
+
 
 def exports(o):
     __all__.append(o.__name__)
@@ -89,7 +87,6 @@ class Job(object):
                 else:
                     self.inputs[filename] = fileobj
 
-        self.outputs = if_not_none(outputs, [])
         self.requirements = if_not_none(requirements, {})
         self.on_status_update = on_status_update
         self.when_finished = when_finished
@@ -113,6 +110,21 @@ class Job(object):
     _get_final_stds = EngineFunction('_get_final_stds')
     _list_output_files = EngineFunction('_list_output_files')
 
+    def __str__(self):
+        desc = ['Job "%s" status:%s' % (self.name, self.status)]
+        if self.jobid: desc.append('jobid:%s' % self.jobid)
+        if self.engine: desc.append('engine:%s' % type(self.engine).__name__)
+        return ' '.join(desc)
+
+    def __repr__(self):
+        s = str(self)
+        if self.engine:
+            s += ' host:%s' % self.engine.hostname
+        if not self.jobid:
+            s += ' at %s' % hex(id(self))
+        return '<%s>' % s
+
+
     def submit(self, block=False):
         self.engine.submit(self)
         if block: self.wait()
@@ -128,7 +140,10 @@ class Job(object):
         """
         Returns status of 'queued', 'running', 'finished' or 'error'
         """
-        return self.engine.get_status(self)
+        if self.jobid:
+            return self.engine.get_status(self)
+        else:
+            return "Unsubmitted"
 
     def _finish_job(self):
         """
@@ -137,7 +152,7 @@ class Job(object):
         :return:
         """
         if self._finished: return
-        if self.status not in status.DONE_STATES: raise JobStillRunning()
+        if self.status not in status.DONE_STATES: raise pyccc.JobStillRunning()
         self._output_files = self.engine._list_output_files(self)
         self._final_stdout, self._final_stderr = self.engine._get_final_stds(self)
         self._finished = True
@@ -181,9 +196,6 @@ class Job(object):
         else:
             return 'Job "%s" launched. id:%s' % (self.name, self.jobid)
 
-@exports
-class JobStillRunning(Exception):
-    pass
 
 
 

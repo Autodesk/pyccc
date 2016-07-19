@@ -11,8 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import absolute_import
+
+import subprocess
+
 import docker
-from pyccc import docker_utils as du
+from pyccc import docker_utils as du, DockerMachineError
 from pyccc import utils, files
 from . import EngineBase, status
 
@@ -28,22 +32,18 @@ class Docker(EngineBase):
                 client from the job's environmental varaibles
             workingdir (str): default working directory to create in the containers
         """
+        if isinstance(client, basestring):
+            client = docker.Client(client)
+
         if client is None:
             client = docker.Client(**docker.utils.kwargs_from_env())
         self.client = client
         self.default_wdir = workingdir
         self.hostname = self.client.base_url
 
-    def get_engine_description(self, job):
-        """ Return a text description of a job
-
-        Args:
-            job (pyccc.job.Job): Job to inspect
-
-        Returns:
-            str: text description
-        """
-        return 'Docker host %s, container: %s' % (self.hostname, job.containerid[:12])
+    def test_connection(self):
+        version = self.client.version()
+        return version
 
     def submit(self, job):
         """ Submit job to the engine
@@ -57,7 +57,7 @@ class Docker(EngineBase):
             job.workingdir = self.default_wdir
         job.imageid = du.create_provisioned_image(self.client, job.image,
                                                   job.workingdir, job.inputs)
-        cmdstring = "bash -c '%s'" % job.command
+        cmdstring = "sh -c '%s'" % job.command
 
         job.container = self.client.create_container(job.imageid,
                                                      command=cmdstring,
@@ -120,6 +120,17 @@ class Docker(EngineBase):
 class DockerMachine(Docker):
     """ Convenience class for connecting to a docker machine.
     """
-    def __init__(self, machine_name):
-        client = du.docker_machine_client(machine_name=machine_name)
+    def __init__(self, machinename):
+        self.machinename = machinename
+        client = du.docker_machine_client(machine_name=machinename)
+
+        machstat = subprocess.check_output(['docker-machine', 'status', machinename]).strip()
+        if machstat != 'Running':
+            raise DockerMachineError('WARNING: docker-machine %s returned status: "%s"' %
+                                     (machinename, status))
+
         super(DockerMachine, self).__init__(client)
+
+    def __str__(self):
+        return "%s engine on '%s' at %s" % (type(self).__name__, self.machinename,
+                                            self.hostname)
