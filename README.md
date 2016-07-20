@@ -1,7 +1,7 @@
 # py-cloud-compute-cannon
 A high-level python interface for running computational jobs using a variety of distributed computing backends.
 
-
+[![PyPI version](https://badge.fury.io/py/pyccc.svg)](https://badge.fury.io/py/pyccc)
 ## Installation
 
 Normal installation:
