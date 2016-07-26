@@ -152,7 +152,7 @@ class Job(object):
         :return:
         """
         if self._finished: return
-        if self.status not in status.DONE_STATES: raise pyccc.JobStillRunning()
+        if self.status not in status.DONE_STATES: raise pyccc.JobStillRunning(self)
         self._output_files = self.engine._list_output_files(self)
         self._final_stdout, self._final_stderr = self.engine._get_final_stds(self)
         self._finished = True

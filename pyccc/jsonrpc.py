@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import base64
+
 import requests
 import json
 import funcsigs
@@ -71,9 +73,17 @@ class JsonRpcProxy(object):
                 for key, value in kwargs['inputs'].iteritems():
                     if hasattr(value, 'read'):
                         value = value.read()
+                    try:
+                        encoded = value.encode('utf8')
+                    except UnicodeDecodeError:
+                        encoded = base64.b64encode(value)
+                        encoding = 'base64'
+                    else:
+                        encoding = 'utf8'
                     inputs.append({'type': 'inline',
-                                   'value': value,
-                                   'name': key
+                                   'value': encoded,
+                                   'name': key,
+                                   'encoding': encoding
                                    })
 
                     jsonRpcRequest['params']['inputs'] = inputs
