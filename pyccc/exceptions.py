@@ -32,6 +32,10 @@ class JobStillRunning(JobExceptionBase):
     """ Raised when a job's status is not "Finshed" or "Error"
     """
 
+class JobErrorState(JobExceptionBase):
+    """ For jobs that have halted but did not complete successfully
+    """
+
 
 class EngineTestError(Exception):
     """ Raised when an engine fails basic connection tests
