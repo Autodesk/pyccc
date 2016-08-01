@@ -188,17 +188,18 @@ class StatusView(Box):
 
         super(StatusView,self).__init__(**kwargs)
         self._job = job
-        text = ipy.HTML(self.STATUS_STRING % (job.name,
+        stat = job.status
+        text = ipy.HTML(self.STATUS_STRING%(job.name,
                                               str(job.engine),
                                               job.jobid,
                                               job.image,
                                               job.command,
-                                              job.status))
-        if job.status == status.QUEUED:
+                                            stat))
+        if stat == status.QUEUED:
             bar_spec = dict(value=1, bar_style='danger')
-        elif job.status == status.RUNNING:
+        elif stat == status.RUNNING:
             bar_spec = dict(value=50, bar_style='info')
-        elif job.status == status.FINISHED:
+        elif stat == status.FINISHED:
             bar_spec = dict(value=100, bar_style='success')
         else:
             bar_spec = dict(value=100, bar_style='danger')

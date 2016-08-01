@@ -100,6 +100,7 @@ class Job(object):
         self._callback_result = None
         self._output_files = None
         self.jobid = None
+        self._stopped = None
 
         if submit and self.engine and self.image: self.submit()
 
@@ -140,10 +141,16 @@ class Job(object):
         """
         Returns status of 'queued', 'running', 'finished' or 'error'
         """
-        if self.jobid:
-            return self.engine.get_status(self)
+        if self._stopped:
+            return self._stopped
+        elif self.jobid:
+            stat = self.engine.get_status(self)
+            if stat in status.DONE_STATES:
+                self._stopped = stat
+            return stat
         else:
             return "Unsubmitted"
+
 
     def _finish_job(self):
         """
@@ -152,11 +159,12 @@ class Job(object):
         :return:
         """
         if self._finished: return
-        if self.status not in status.DONE_STATES:
+        stat = self.status
+        if stat not in status.DONE_STATES:
             raise pyccc.JobStillRunning(self)
-        if self.status != status.FINISHED:
-            raise pyccc.JobErrorState(self, 'Job did not complete successfully (status:%s)' %
-                                      self.status)
+        if stat != status.FINISHED:
+            raise pyccc.JobErrorState(self, 'Job did not complete successfully (status:%s)'%
+                                      stat)
         self._output_files = self.engine._list_output_files(self)
         self._final_stdout, self._final_stderr = self.engine._get_final_stds(self)
         self._finished = True
