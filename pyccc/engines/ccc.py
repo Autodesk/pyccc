@@ -130,7 +130,7 @@ class CloudComputeCannon(EngineBase):
             if job.status == status.RUNNING:
                 run_time += polltime
             if run_time > job.runtime:
-                raise pyccc.JobTimeoutError('Job timed out - status "%s"' % job.status)
+                raise pyccc.TimeoutError(job, 'Job timed out - status "%s"' % job.status)
             if wait_time > 1000: polltime = 60
             elif wait_time > 100: polltime = 20
             elif wait_time > 10: polltime = 5

@@ -27,6 +27,7 @@ else:
 
 __all__ = 'JobStatusDisplay'.split()
 
+
 if widgets_enabled:
     try:
         ipy.Text()
@@ -34,6 +35,7 @@ if widgets_enabled:
         widgets_enabled = False
     else:
         widgets_enabled = True
+
 
 class JobStatusDisplay(Box):
     """
