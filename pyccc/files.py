@@ -1,3 +1,6 @@
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
 # Copyright 2016 Autodesk Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,9 +18,9 @@ import os
 import shutil
 import tempfile
 import io
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import tarfile
-import StringIO
+import io
 import socket
 
 try:
@@ -269,7 +272,7 @@ class HttpContainer(LazyFetcherBase):
 
     def _fetch(self):
         self._open_tmpfile()
-        request = urllib2.urlopen(self.source)
+        request = urllib.request.urlopen(self.source)
         for line in request:
             self.tmpfile.write(line)
         request.close()
@@ -305,7 +308,7 @@ class LazyDockerCopy(LazyFetcherBase):
         request = client.copy(self.containerid, self.containerpath)
 
         # from stackoverflow link
-        filelike = StringIO.StringIO(request.read())
+        filelike = io.StringIO(request.read())
         tar = tarfile.open(fileobj=filelike)
         file = tar.extractfile(os.path.basename(self.containerpath))
         # end SOFlow

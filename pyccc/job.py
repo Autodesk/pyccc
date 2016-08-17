@@ -14,6 +14,11 @@
 """
 Low-level API functions. These are the actual REST interactions with the workflow server.
 """
+from __future__ import absolute_import
+from builtins import str
+from builtins import hex
+from past.builtins import basestring
+from builtins import object
 import pyccc
 from pyccc import files, status
 from pyccc.utils import *
@@ -81,7 +86,7 @@ class Job(object):
 
         self.inputs = inputs
         if self.inputs is not None:  # translate strings into file objects
-            for filename, fileobj in inputs.iteritems():
+            for filename, fileobj in inputs.items():
                 if isinstance(fileobj, basestring):
                     self.inputs[filename] = files.StringContainer(fileobj)
                 else:
@@ -202,7 +207,7 @@ class Job(object):
 
     def get_display_object(self):
         """Return a jupyter widget"""
-        from ui import JobStatusDisplay, widgets_enabled
+        from .ui import JobStatusDisplay, widgets_enabled
         if widgets_enabled:
             return JobStatusDisplay(self)
         else:

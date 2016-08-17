@@ -1,3 +1,6 @@
+from future import standard_library
+standard_library.install_aliases()
+from builtins import range
 # Copyright 2016 Autodesk Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +21,7 @@ import subprocess
 
 import io
 import tarfile
-from StringIO import StringIO
+from io import StringIO
 
 from .exceptions import DockerMachineError
 
@@ -40,7 +43,7 @@ def create_build_context(image, inputs, wdir):
     build_context = {}
     if inputs:
         dockerstring += "\nCOPY inputs %s\n" % wdir
-        for name, obj in inputs.iteritems():
+        for name, obj in inputs.items():
             build_context['inputs/%s' % name] = obj
     else:
         dockerstring += "\nRUN mkdir -p %s\n" % wdir
@@ -80,7 +83,7 @@ def _issue1134_helper(x):
     num_brace = 1
     rootbrace = 0
 
-    for ichar in xrange(1,len(s)):
+    for ichar in range(1,len(s)):
         char = s[ichar]
         if char == '}' and s[ichar-1] != '\\':
             num_brace -= 1
@@ -106,7 +109,7 @@ def make_tar_stream(sdict):
     """
     tarbuffer = io.BytesIO()
     tf = tarfile.TarFile(fileobj=tarbuffer, mode='w')
-    for name, fileobj in sdict.iteritems():
+    for name, fileobj in sdict.items():
         tar_add_string(tf, name, fileobj.read())
     tf.close()
     tarbuffer.seek(0)

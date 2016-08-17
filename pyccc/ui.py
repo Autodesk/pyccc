@@ -1,3 +1,4 @@
+from builtins import str
 # Copyright 2016 Autodesk Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -91,7 +92,7 @@ class FileBrowser(Tab):
         titles = []
         file_list = [ipy.Box()]
         ignores = set(ignore_ext)
-        for filename, fileobj in file_dict.iteritems():
+        for filename, fileobj in file_dict.items():
             ext = filename.split('.')[-1]
             if ext in ignores:
                 continue

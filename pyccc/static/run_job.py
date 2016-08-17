@@ -16,8 +16,10 @@
 This is a script that drives the remote computation of a function or instance method.
 It's designed to use the pickled objects produced by the PythonJob class
 """
+from future import standard_library
+standard_library.install_aliases()
 import os
-import cPickle as cp
+import pickle as cp
 import traceback as tb
 
 
@@ -36,9 +38,9 @@ def unpickle_with_remap(fileobj):
     import pickle
 
     try:
-        from cStringIO import StringIO
+        from io import StringIO
     except ImportError:
-        from StringIO import StringIO
+        from io import StringIO
 
     def mapname(name):
         if name in RENAMETABLE:
@@ -66,7 +68,7 @@ if __name__ == '__main__':
             job = unpickle_with_remap(pf)
 
         if hasattr(job, 'func_name'):
-            func = getattr(source, job.func_name)
+            func = getattr(source, job.__name__)
         else:
             func = None
 

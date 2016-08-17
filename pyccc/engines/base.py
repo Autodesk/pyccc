@@ -1,3 +1,6 @@
+from builtins import str
+from builtins import hex
+from builtins import object
 # Copyright 2016 Autodesk Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");

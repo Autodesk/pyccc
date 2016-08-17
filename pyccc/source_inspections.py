@@ -14,6 +14,8 @@
 """
 Source code inspections for sending python code to workers
 """
+from builtins import zip
+from builtins import range
 
 
 import inspect
@@ -68,7 +70,7 @@ def getsource(classorfunc):
             cls.__name__,
             ','.join([base.__name__ for base in cls.__bases__]),
             after_decl)
-        declaration = [impstring for c, impstring in base_imports.iteritems()
+        declaration = [impstring for c, impstring in base_imports.items()
                        if c.__module__ != '__builtin__']
         declaration.append(declstring)
 

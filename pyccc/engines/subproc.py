@@ -53,7 +53,7 @@ class Subprocess(EngineBase):
         self._check_job(job)
         job.workingdir = utils.make_local_temp_dir()
         if job.inputs:
-            for filename, file in job.inputs.iteritems():
+            for filename, file in job.inputs.items():
                 file.put('%s/%s' % (job.workingdir, filename))
 
         job.subproc = subprocess.Popen(job.command,
@@ -81,7 +81,7 @@ class Subprocess(EngineBase):
             elif os.path.isdir(fname):
                 dirfiles = job._list_output_files(dir=abs_path)
                 filenames.update({'%s/%s' % (fname, f): obj
-                                  for f, obj in dirfiles.iteritems()})
+                                  for f, obj in dirfiles.items()})
             else:
                 filenames[fname] = files.LocalFile(abs_path)
         return filenames

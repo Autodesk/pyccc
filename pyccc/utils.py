@@ -15,8 +15,13 @@
 My standard utilities. Intended to be included in all projects
 Obviously everything included here needs to be in the standard library
 """
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import range
+from builtins import object
 import os
-from cStringIO import StringIO
+from io import StringIO
 from functools import wraps
 from uuid import uuid4
 import tempfile
@@ -44,8 +49,8 @@ def wget(url):
     """
     Download the page into a string
     """
-    import urllib2
-    request = urllib2.urlopen(url)
+    import urllib.request, urllib.error, urllib.parse
+    request = urllib.request.urlopen(url)
     ":type: urllib2.req"
     filestring = request.read()
     return filestring
@@ -65,7 +70,7 @@ class PipedFile(object):
     >>>     print open(pipepath,'r').read()
     """
     def __init__(self, fileobj, filename='pipe'):
-        if type(fileobj) in (unicode,str):
+        if type(fileobj) in (str,str):
             self.fileobj = StringIO(fileobj)
         else:
             self.fileobj = fileobj
@@ -97,7 +102,7 @@ def remove_directories(list_of_paths):
     found_dirs = set('/')
     for path in list_of_paths:
         dirs = path.strip().split('/')
-        for i in xrange(2,len(dirs)):
+        for i in range(2,len(dirs)):
             found_dirs.add( '/'.join(dirs[:i]) )
 
     paths = [ path for path in list_of_paths if
@@ -294,7 +299,7 @@ class DocInherit(object):
 
     def use_parent_doc(self, func, source):
         if source is None:
-            raise NameError, ("Can't find '%s' in parents"%self.name)
+            raise NameError("Can't find '%s' in parents"%self.name)
         func.__doc__ = source.__doc__
         return func
 

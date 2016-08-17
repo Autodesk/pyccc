@@ -14,7 +14,10 @@
 """
 Functions to that allow python commands to be run as jobs with the platform API
 """
-import cPickle as cp
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
+import pickle as cp
 import inspect
 
 import pyccc
@@ -41,7 +44,7 @@ class PythonCall(object):
         self.kwargs = kwargs
 
         try:
-            temp = function.im_self.__class__
+            temp = function.__self__.__class__
         except AttributeError:
             self.is_instancemethod = False
         else:
@@ -101,7 +104,7 @@ class PythonJob(job.Job):
         if self.sendsource:
             func = self.function_call.function
             if self.function_call.is_instancemethod:
-                obj = func.im_self.__class__
+                obj = func.__self__.__class__
             else:
                 obj = func
             srclines = src.getsource(obj)
@@ -114,7 +117,7 @@ class PythonJob(job.Job):
         # This is the only source code needed from pyccc
         srclines += PACKAGEDFUNCTIONSOURCE
 
-        if isinstance(srclines, unicode):
+        if isinstance(srclines, str):
             srclines = '# -*- coding: utf-8 -*-\n' + srclines.encode('utf-8')
         return srclines
 
@@ -202,10 +205,10 @@ class PackagedFunction(object):
         func = function_call.function
         self.is_imethod = hasattr(func, 'im_self')
         if self.is_imethod:
-            self.obj = func.im_self
+            self.obj = func.__self__
             self.imethod_name = func.__name__
         else:
-            self.func_name = func.__name__
+            self.__name__ = func.__name__
         self.args = function_call.args
         self.kwargs = function_call.kwargs
 
@@ -213,10 +216,10 @@ class PackagedFunction(object):
         closure = src.getclosurevars(func)
         if closure.nonlocals:
             raise TypeError("Can't launch a job with closure variables: %s"%
-                            closure.nonlocals.keys())
+                            list(closure.nonlocals.keys()))
         self.global_closure = {}
         self.global_modules = {}
-        for name, value in closure.globals.iteritems():
+        for name, value in closure.globals.items():
             if inspect.ismodule(value):
                 self.global_modules[name] = value.__name__
             else:
@@ -245,11 +248,11 @@ class PackagedFunction(object):
         else:
             to_run = func
 
-        for varname, modulename in self.global_modules.iteritems():
+        for varname, modulename in self.global_modules.items():
             exec ('import %s as %s' % (modulename, varname))
-            to_run.func_globals[varname] = eval(varname)
-        for name, value in self.global_closure.iteritems():
-            to_run.func_globals[name] = value
+            to_run.__globals__[varname] = eval(varname)
+        for name, value in self.global_closure.items():
+            to_run.__globals__[name] = value
         return to_run
 
 PACKAGEDFUNCTIONSOURCE = '\n' + src.getsource(PackagedFunction)
