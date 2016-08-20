@@ -1,3 +1,5 @@
+*.pyo
+*.bak
 *.pyc
 .ipynb_checkpoints
 .idea
