@@ -14,11 +14,12 @@
 """
 Low-level API functions. These are the actual REST interactions with the workflow server.
 """
-from __future__ import absolute_import
-from builtins import str
-from builtins import hex
+from __future__ import print_function, unicode_literals, absolute_import, division
+from future import standard_library
+standard_library.install_aliases()
+from future.builtins import *
 from past.builtins import basestring
-from builtins import object
+
 import pyccc
 from pyccc import files, status
 from pyccc.utils import *

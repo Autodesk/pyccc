@@ -19,7 +19,7 @@ def typedfixture(*types, **kwargs):
     return fixture_wrapper
 
 BYTES_CONTENT = b'abcd\n1234'
-STRING_CONTENT = 'abcd\n1234'
+STRING_CONTENT = u'abcd\n1234'
 LINES_CONTENT = ['abcd\n',
                  '1234']
 
@@ -61,4 +61,11 @@ def test_file_container(objkey, request):
     assert my_container.read() == STRING_CONTENT
     assert my_container.read('rb') == BYTES_CONTENT
 
+
+@pytest.mark.parametrize('objkey', registered_types['container'])
+def test_containers_open_filelike_object(objkey, request):
+    ctr = request.getfuncargvalue(objkey)
+    assert list(ctr.open('r')) == LINES_CONTENT
+    assert ctr.open('r').read() == STRING_CONTENT
+    assert ctr.open('rb').read() == BYTES_CONTENT
 

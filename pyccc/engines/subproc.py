@@ -11,9 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import print_function, unicode_literals, absolute_import, division
+from future import standard_library
+standard_library.install_aliases()
+from future.builtins import *
 
 import os
 import subprocess
+import locale
 
 from pyccc import utils as utils, files
 from . import EngineBase, status
@@ -24,6 +29,10 @@ class Subprocess(EngineBase):
     For now, don't return anything until job completes"""
 
     hostname = 'local'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.term_encoding = locale.getpreferredencoding()
 
     def get_status(self, job):
         if job.subproc.poll() is None:
@@ -90,5 +99,5 @@ class Subprocess(EngineBase):
         strings = []
         #Todo - we'll need to buffer any streamed output, since stdout isn't seekable
         for fileobj in (job.subproc.stdout, job.subproc.stderr):
-            strings.append(fileobj.read())
+            strings.append(fileobj.read().decode(self.term_encoding))
         return strings

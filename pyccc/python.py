@@ -14,9 +14,11 @@
 """
 Functions to that allow python commands to be run as jobs with the platform API
 """
+from __future__ import print_function, unicode_literals, absolute_import, division
 from future import standard_library
 standard_library.install_aliases()
-from builtins import object
+from future.builtins import *
+
 import pickle as cp
 import inspect
 
@@ -86,9 +88,10 @@ class PythonJob(job.Job):
 
         remote_function = PackagedFunction(self.function_call)
         python_files['function.pkl'] = StringContainer(cp.dumps(remote_function, protocol=2),
-                                                       'function.pkl')
+                                                       name='function.pkl')
 
-        sourcefile = StringContainer(self._get_source(), 'source.py')
+        sourcefile = StringContainer(self._get_source(),
+                                     name='source.py')
 
         python_files['source.py'] = sourcefile
         return python_files
@@ -98,8 +101,7 @@ class PythonJob(job.Job):
         Calls the appropriate source inspection to get any required source code
 
         Returns:
-             str: string containing source code. If the relevant code is unicode, it will be
-             encoded as utf-8, with the encoding declared in the first line of the file
+             bytes: utf-8 encoded source code
         """
         if self.sendsource:
             func = self.function_call.function
@@ -118,7 +120,7 @@ class PythonJob(job.Job):
         srclines += PACKAGEDFUNCTIONSOURCE
 
         if isinstance(srclines, str):
-            srclines = '# -*- coding: utf-8 -*-\n' + srclines.encode('utf-8')
+            srclines = b'# -*- coding: utf-8 -*-\n' + srclines.encode('utf-8')
         return srclines
 
     @property
@@ -168,7 +170,7 @@ class PythonJob(job.Job):
             if 'exception.pkl' in self.get_output():
                 self._raised = False
                 try:
-                    self._exception = cp.loads(self.get_output('exception.pkl').read())
+                    self._exception = cp.loads(self.get_output('exception.pkl').read('rb'))
                 except Exception as exc:  # catches errors in unpickling the exception
                     self._exception = exc
                 self._traceback = self.get_output('traceback.txt').read()
@@ -184,7 +186,7 @@ class PythonJob(job.Job):
         import tblib
         if (force or not self._raised) and self.exception:
             self._raised = True
-            raise self._exception, None, tblib.Traceback.from_string(self._traceback).as_traceback()
+            raise self._exception
 
 
 class PackagedFunction(object):

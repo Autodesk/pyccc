@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import print_function, unicode_literals, absolute_import, division
 
+import requests
 from future import standard_library
 standard_library.install_aliases()
 from future.builtins import *
@@ -19,7 +21,6 @@ from future.builtins import *
 import os
 import io
 import tarfile
-import urllib
 
 from . import CachedFile
 
@@ -36,7 +37,8 @@ class _FetchFunction(object):
 
 class LazyFetcherBase(CachedFile):
     """
-    A base class for for dealing with files that need to be downloaded - they are cached locally when downloaded.
+    A base class for for dealing with files that need to be downloaded - they are cached
+    locally when downloaded.
     """
     def __init__(self):
         self._fetched = False
@@ -85,10 +87,8 @@ class HttpContainer(LazyFetcherBase):
 
     def _fetch(self):
         self._open_tmpfile()
-        request = urllib.request.urlopen(self.source)
-        for line in request:
-            self.tmpfile.write(line)
-        request.close()
+        request = requests.get(self.source)
+        self.tmpfile.write(request.content)
         self.tmpfile.close()
         self.localpath = self.tmpfile.name
         self._fetched = True
@@ -121,7 +121,7 @@ class LazyDockerCopy(LazyFetcherBase):
         request = client.copy(self.containerid, self.containerpath)
 
         # from stackoverflow link
-        filelike = io.StringIO(request.read())
+        filelike = io.BytesIO(request.read())
         tar = tarfile.open(fileobj=filelike)
         file = tar.extractfile(os.path.basename(self.containerpath))
         # end SOFlow

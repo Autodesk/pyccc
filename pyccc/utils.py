@@ -11,15 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-My standard utilities. Intended to be included in all projects
-Obviously everything included here needs to be in the standard library
-"""
+from __future__ import print_function, unicode_literals, absolute_import, division
 from future import standard_library
 standard_library.install_aliases()
-from builtins import str
-from builtins import range
-from builtins import object
+from future.builtins import *
+
 import os
 from io import StringIO
 from functools import wraps
@@ -34,6 +30,7 @@ GIST_URL = "https://gist.github.com/avirshup/5dd7d5638acf245b2b1f"
 RAW_GIST = 'https://gist.githubusercontent.com/avirshup/5dd7d5638acf245b2b1f/raw/'
 MY_PATH = os.path.abspath(__file__)
 
+
 def gist_diff():
     """Diff this file with the gist on github"""
     remote_file = wget(RAW_GIST)
@@ -42,7 +39,6 @@ def gist_diff():
                             stdout=subprocess.PIPE)
     stdout, stderr = proc.communicate(remote_file)
     return stdout
-
 
 
 def wget(url):
@@ -55,11 +51,34 @@ def wget(url):
     filestring = request.read()
     return filestring
 
+
 def if_not_none(item,default):
     if item is None:
         return default
     else:
         return item
+
+
+def autodecode(b):
+    """ Try to decode ``bytes`` to text - try default encoding first, otherwise try to autodetect
+
+    Args:
+        b (bytes): byte string
+
+    Returns:
+        str: decoded text string
+    """
+    import warnings
+    import chardet
+
+    try:
+        return b.decode()
+    except UnicodeError:
+        result = chardet.detect(b)
+        if result['confidence'] < 0.95:
+            warnings.warn('autodecode failed with utf-8; guessing %s' % result['encoding'])
+        return result.decode(result['encoding'])
+
 
 class PipedFile(object):
     """
@@ -70,7 +89,7 @@ class PipedFile(object):
     >>>     print open(pipepath,'r').read()
     """
     def __init__(self, fileobj, filename='pipe'):
-        if type(fileobj) in (str,str):
+        if type(fileobj) in (str, str):
             self.fileobj = StringIO(fileobj)
         else:
             self.fileobj = fileobj

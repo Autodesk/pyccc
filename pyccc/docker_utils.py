@@ -1,6 +1,3 @@
-from future import standard_library
-standard_library.install_aliases()
-from builtins import range
 # Copyright 2016 Autodesk Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,14 +11,19 @@ from builtins import range
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import print_function, unicode_literals, absolute_import, division
+from future import standard_library
+standard_library.install_aliases()
+from future.builtins import *
+
 import json
 import logging
 import os
 import subprocess
-
 import io
 import tarfile
-from io import StringIO
+
+import pyccc
 
 from .exceptions import DockerMachineError
 
@@ -48,7 +50,7 @@ def create_build_context(image, inputs, wdir):
     else:
         dockerstring += "\nRUN mkdir -p %s\n" % wdir
 
-    build_context['Dockerfile'] = StringIO(dockerstring)
+    build_context['Dockerfile'] = pyccc.BytesContainer(dockerstring.encode('utf-8'))
 
     return build_context
 
@@ -60,7 +62,10 @@ def build_dfile_stream(client, dfilestream, is_tar=False, **kwargs):
                             **kwargs)
 
     # this blocks until the image is done building
-    for x in buildcmd: logging.info('building image:%s' % (x.rstrip('\n')))
+    for x in buildcmd:
+        if isinstance(x, bytes):
+            x = x.decode('utf-8')  # TODO: is this a bug? Why is docker API returning bytes?
+        logging.info('building image:%s' % (x.rstrip('\n')))
 
     result = json.loads(_issue1134_helper(x))
     try:
@@ -69,7 +74,7 @@ def build_dfile_stream(client, dfilestream, is_tar=False, **kwargs):
         raise IOError(result)
 
     if reply.split()[:2] != 'Successfully built'.split():
-        raise IOError('Failed to build image:%s'%reply)
+        raise IOError('Failed to build image:%s' % reply)
 
     imageid = reply.split()[2]
     return imageid
@@ -77,7 +82,8 @@ def build_dfile_stream(client, dfilestream, is_tar=False, **kwargs):
 
 def _issue1134_helper(x):
     # workaround for https://github.com/docker/docker-py/issues/1134
-    # docker appears to return two JSONs in a single string. This returns the last one
+    # docker appears to return two JSONs in a single string. This parses the string to return the
+    # last JSON object only
     s = x.strip()
     assert s[0] == '{'
     num_brace = 1
@@ -98,36 +104,38 @@ def _issue1134_helper(x):
     return s[rootbrace: endbrace+1]
 
 
-
-
 def make_tar_stream(sdict):
+    """ Create a file-like tarfile object
+
+    Args:
+        sdict (Mapping[str, pyccc.FileReferenceBase]): dict mapping filenames to file references
+
+    Returns:
+        Filelike: TarFile stream
     """
-    Given a dictionary of the form {'filename':'file-like-object'},
-    creates a tar stream with the _contents.
-    TODO: don't do this in memory
-    :return: TarFile stream (file-like object)
-    """
+    # TODO: this is currently done in memory - bad for big files!
     tarbuffer = io.BytesIO()
     tf = tarfile.TarFile(fileobj=tarbuffer, mode='w')
     for name, fileobj in sdict.items():
-        tar_add_string(tf, name, fileobj.read())
+        tar_add_string(tf, name, fileobj.read('rb'))
     tf.close()
     tarbuffer.seek(0)
     return tarbuffer
 
 
-def tar_add_string(tf, filename, string):
-    # This one function has given me a huge amount of trouble around formatting unicode strings.
-    # The only real solution is to have everything in bytes by the time it gets here - no unicode
-    #    objects allowed.
-    # Some notes:
-    # 1. the io module is python 3 centric, so io.BytesIO=str and io.StringIO=unicode
-    # 2. If we just have a unicode string, there's NO WAY to determine what encoding is expected.
-    # 3. The TarFile.addfile method appears to require a str (i.e., BytesIO) buffer. Everything
-    #    needs to be encoded as bytes, not unicode, before we tar it up
-    buff = io.BytesIO(string)
+def tar_add_string(tf, filename, bytestring):
+    """ Add a file to a tar archive
+
+    Args:
+        tf (tarfile.TarFile): tarfile to add the file to
+        filename (str): path within the tar file
+        bytestring (bytes): file contents. Must be :class:`bytes` or ascii-encodable :class:`str`
+    """
+    if hasattr(bytestring, 'encode'):  # it hasn't been encoded yet
+        bytestring = bytestring.encode('ascii')
+    buff = io.BytesIO(bytestring)
     tarinfo = tarfile.TarInfo(filename)
-    tarinfo.size = len(string)
+    tarinfo.size = len(bytestring)
     tf.addfile(tarinfo, buff)
 
 
@@ -140,7 +148,8 @@ def docker_machine_env(machine_name):
     vars = {}
     for line in stdout.split('\n'):
         fields = line.split()
-        if len(line) < 1 or fields[0] != 'export': continue
+        if len(line) < 1 or fields[0] != 'export':
+            continue
         k, v = fields[1].split('=')
         vars[k] = v.strip('"')
 

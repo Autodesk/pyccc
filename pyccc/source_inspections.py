@@ -14,16 +14,16 @@
 """
 Source code inspections for sending python code to workers
 """
-from builtins import zip
-from builtins import range
-
+from __future__ import print_function, unicode_literals, absolute_import, division
+from future import standard_library, builtins
+standard_library.install_aliases()
+from future.builtins import *
 
 import inspect
 import linecache
 import re
 import string
 from collections import namedtuple
-import future_builtins as builtins
 
 __author__ = 'aaronvirshup'
 
