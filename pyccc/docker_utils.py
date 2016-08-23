@@ -117,21 +117,22 @@ def make_tar_stream(sdict):
     tarbuffer = io.BytesIO()
     tf = tarfile.TarFile(fileobj=tarbuffer, mode='w')
     for name, fileobj in sdict.items():
-        tar_add_string(tf, name, fileobj.read('rb'))
+        tar_add_bytes(tf, name, fileobj.read('rb'))
     tf.close()
     tarbuffer.seek(0)
     return tarbuffer
 
 
-def tar_add_string(tf, filename, bytestring):
+def tar_add_bytes(tf, filename, bytestring):
     """ Add a file to a tar archive
 
     Args:
         tf (tarfile.TarFile): tarfile to add the file to
         filename (str): path within the tar file
-        bytestring (bytes): file contents. Must be :class:`bytes` or ascii-encodable :class:`str`
+        bytestring (bytes or str): file contents. Must be :class:`bytes` or
+            ascii-encodable :class:`str`
     """
-    if hasattr(bytestring, 'encode'):  # it hasn't been encoded yet
+    if not isinstance(bytestring, bytes):  # it hasn't been encoded yet
         bytestring = bytestring.encode('ascii')
     buff = io.BytesIO(bytestring)
     tarinfo = tarfile.TarInfo(filename)

@@ -15,16 +15,21 @@
 """
 This is a script that drives the remote computation of a function or instance method.
 It's designed to use the pickled objects produced by the PythonJob class
+
+Note:
+    This script must be able to run in both Python 2.7 and 3.5+ *without any dependencies*
 """
-from future import standard_library
-standard_library.install_aliases()
+from __future__ import print_function, unicode_literals, absolute_import, division
+
 import os
+import types
+import sys
 import pickle as cp
 import traceback as tb
 
 
 RENAMETABLE = {'pyccc.python': 'source',
-               '__main__':'source'}
+               '__main__': 'source'}
 
 
 def unpickle_with_remap(fileobj):
@@ -36,11 +41,7 @@ def unpickle_with_remap(fileobj):
         https://wiki.python.org/moin/UsingPickle/RenamingModules
     """
     import pickle
-
-    try:
-        from io import StringIO
-    except ImportError:
-        from io import StringIO
+    import source
 
     def mapname(name):
         if name in RENAMETABLE:
@@ -48,9 +49,18 @@ def unpickle_with_remap(fileobj):
         return name
 
     def mapped_load_global(self):
-        module = mapname(self.readline()[:-1])
+        modname = mapname(self.readline()[:-1])
         name = mapname(self.readline()[:-1])
-        klass = self.find_class(module, name)
+        try:
+            klass = self.find_class(modname, name)
+        except ImportError:  # if necessary, create a module and put the class there
+            if hasattr(source, name):
+                newmod = types.ModuleType(modname)
+                sys.modules[modname] = newmod
+                setattr(newmod, name, getattr(source, name))
+            klass = self.find_class(modname, name)
+            klass.__module__ = modname
+
         self.append(klass)
 
     unpickler = pickle.Unpickler(fileobj)
@@ -59,15 +69,14 @@ def unpickle_with_remap(fileobj):
 
 
 if __name__ == '__main__':
-    # Load any passed source libraries
-    import source
+    import source  # this is the dynamically created source module
     os.environ['IS_PYCCC_JOB'] = '1'
     try:
-        # Read in the packaged function
+        # Deserialize and set up the packaged function (see pyccc.python.PackagedFunction)
         with open('function.pkl', 'r') as pf:
             job = unpickle_with_remap(pf)
 
-        if hasattr(job, 'func_name'):
+        if hasattr(job, '__name__'):
             func = getattr(source, job.__name__)
         else:
             func = None

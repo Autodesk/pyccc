@@ -17,9 +17,11 @@ Functions to that allow python commands to be run as jobs with the platform API
 from __future__ import print_function, unicode_literals, absolute_import, division
 from future import standard_library
 standard_library.install_aliases()
-from future.builtins import *
+from future.builtins import str, bytes, dict, list
+from future.builtins import object as futureobject
 
-import pickle as cp
+import sys
+import pickle
 import inspect
 
 import pyccc
@@ -39,7 +41,7 @@ PYTHON_JOB_FILE = LocalFile('%s/static/run_job.py' % pyccc.PACKAGE_PATH)
 
 
 @exports
-class PythonCall(object):
+class PythonCall(futureobject):
     def __init__(self, function, *args, **kwargs):
         self.function = function
         self.args = args
@@ -82,13 +84,15 @@ class PythonJob(job.Job):
     def _get_python_files(self):
         """
         Construct the files to send the remote host
-        :return: dictionary of filenames and file objects
+
+        Returns:
+             dict: dictionary of filenames and file objects
         """
         python_files = {'run_job.py': PYTHON_JOB_FILE}
 
         remote_function = PackagedFunction(self.function_call)
-        python_files['function.pkl'] = StringContainer(cp.dumps(remote_function, protocol=2),
-                                                       name='function.pkl')
+        python_files['function.pkl'] = pyccc.BytesContainer(pickle.dumps(remote_function, protocol=2),
+                                                            name='function.pkl')
 
         sourcefile = StringContainer(self._get_source(),
                                      name='source.py')
@@ -147,7 +151,7 @@ class PythonJob(job.Job):
                 raise ProgramFailure('The remote python program crashed without throwing an '
                                      'exception. Please carefully examine the execution '
                                      'environment.')
-            self._callback_result = cp.loads(returnval.read())
+            self._callback_result = pickle.loads(returnval.read('rb'))
         return self._callback_result
 
     @property
@@ -158,7 +162,7 @@ class PythonJob(job.Job):
         """
         if self._updated_object is None:
             self.reraise_remote_exception()
-            self._updated_object = cp.loads(self.get_output('_object_state.pkl').read())
+            self._updated_object = pickle.loads(self.get_output('_object_state.pkl').read('rb'))
         return self._updated_object
 
     @property
@@ -170,7 +174,7 @@ class PythonJob(job.Job):
             if 'exception.pkl' in self.get_output():
                 self._raised = False
                 try:
-                    self._exception = cp.loads(self.get_output('exception.pkl').read('rb'))
+                    self._exception = pickle.loads(self.get_output('exception.pkl').read('rb'))
                 except Exception as exc:  # catches errors in unpickling the exception
                     self._exception = exc
                 self._traceback = self.get_output('traceback.txt').read()
@@ -189,6 +193,9 @@ class PythonJob(job.Job):
             raise self._exception
 
 
+# Note: PackagedFunction does NOT inherit from `future.builtins.object` - that would introduce a
+# dependency on the `future` package when we try to run this remotely. Instead, we just use the
+# interpreter's built-in `object` type.
 class PackagedFunction(object):
     """
     This object captures enough information to serialize, deserialize, and run a
@@ -230,10 +237,12 @@ class PackagedFunction(object):
     def run(self, func=None):
         """
         Evaluates the packaged function as func(*self.args,**self.kwargs)
-        If func is a method of an object, it's accessed as getattr(self.obj,func_name).
+        If func is a method of an object, it's accessed as getattr(self.obj,__name__).
         If it's a user-defined function, it needs to be passed in here because it can't
         be serialized.
-        :return: function's return value
+
+        Returns:
+             function's return value
         """
         to_run = self.prepare_namespace(func)
         result = to_run(*self.args, **self.kwargs)
@@ -243,7 +252,9 @@ class PackagedFunction(object):
         """
         Prepares the function to be run after deserializing it.
         Re-associates any previously bound variables and modules from the closure
-        :return: Prepared callable function
+
+        Returns:
+            Prepared callable function
         """
         if self.is_imethod:
             to_run = getattr(self.obj, self.imethod_name)
@@ -251,7 +262,7 @@ class PackagedFunction(object):
             to_run = func
 
         for varname, modulename in self.global_modules.items():
-            exec ('import %s as %s' % (modulename, varname))
+            exec('import %s as %s' % (modulename, varname))
             to_run.__globals__[varname] = eval(varname)
         for name, value in self.global_closure.items():
             to_run.__globals__[name] = value

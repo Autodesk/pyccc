@@ -46,7 +46,6 @@ class Subprocess(EngineBase):
         if job.stdout.strip() != 'check12':
             raise
 
-
     def get_engine_description(self, job):
         """
         Return a text description for the UI
@@ -70,7 +69,7 @@ class Subprocess(EngineBase):
                                        cwd=job.workingdir,
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE)
-        job.jobid = job.subproc
+        job.jobid = job.subproc.pid
         job._started = True
         return job.subproc.pid
 
