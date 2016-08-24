@@ -38,6 +38,7 @@ __all__ = []
 
 
 PYTHON_JOB_FILE = LocalFile('%s/static/run_job.py' % pyccc.PACKAGE_PATH)
+DEFAULT_INTERPRETER = 'python%s.%s' % sys.version_info[:2]
 
 
 @exports
@@ -57,16 +58,18 @@ class PythonCall(futureobject):
 
 @exports
 class PythonJob(job.Job):
-    SHELL_COMMAND = 'python2 run_job.py'
 
     # @utils.doc_inherit
-    def __init__(self, engine, image, command, sendsource=True, **kwargs):
+    def __init__(self, engine, image, command,
+                 interpreter=DEFAULT_INTERPRETER,
+                 sendsource=True, **kwargs):
         self._raised = False
         self._updated_object = None
         self._exception = None
         self._traceback = None
         self.sendsource = sendsource
         self._function_result = None
+        self.interpreter = self._clean_interpreter_string(interpreter)
 
         self.function_call = command
 
@@ -78,8 +81,20 @@ class PythonJob(job.Job):
         python_files = self._get_python_files()
         inputs.update(python_files)
 
-        super(PythonJob, self).__init__(engine, image, self.SHELL_COMMAND,
+        command = '%s run_job.py' % self.interpreter
+
+        super(PythonJob, self).__init__(engine, image, command,
                                         **kwargs)
+
+    @staticmethod
+    def _clean_interpreter_string(istr):
+        try:
+            float(istr)
+        except ValueError:
+            return istr
+        else:
+            return 'python' + str(istr)
+
 
     def _get_python_files(self):
         """
@@ -148,9 +163,7 @@ class PythonJob(job.Job):
             try:
                 returnval = self.get_output('_function_return.pkl')
             except KeyError:
-                raise ProgramFailure('The remote python program crashed without throwing an '
-                                     'exception. Please carefully examine the execution '
-                                     'environment.')
+                raise ProgramFailure(self)
             self._callback_result = pickle.loads(returnval.read('rb'))
         return self._callback_result
 

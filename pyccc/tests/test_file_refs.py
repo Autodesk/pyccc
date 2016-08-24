@@ -4,7 +4,7 @@ import uuid
 
 import pyccc
 
-registered_types = {}
+fixture_types = {}
 
 
 def typedfixture(*types, **kwargs):
@@ -13,7 +13,7 @@ def typedfixture(*types, **kwargs):
 
     def fixture_wrapper(func):
         for t in types:
-            registered_types.setdefault(t, []).append(func.__name__)
+            fixture_types.setdefault(t, []).append(func.__name__)
         return pytest.fixture(**kwargs)(func)
 
     return fixture_wrapper
@@ -54,17 +54,17 @@ def localfile_in_memory(bytescontainer):
     return pyccc.FileContainer(localfile.localpath)
 
 
-@pytest.mark.parametrize('objkey', registered_types['container'])
-def test_file_container(objkey, request):
-    my_container = request.getfuncargvalue(objkey)
+@pytest.mark.parametrize('fixture', fixture_types['container'])
+def test_file_container(fixture, request):
+    my_container = request.getfuncargvalue(fixture)
     assert list(my_container) == LINES_CONTENT
     assert my_container.read() == STRING_CONTENT
     assert my_container.read('rb') == BYTES_CONTENT
 
 
-@pytest.mark.parametrize('objkey', registered_types['container'])
-def test_containers_open_filelike_object(objkey, request):
-    ctr = request.getfuncargvalue(objkey)
+@pytest.mark.parametrize('fixture', fixture_types['container'])
+def test_containers_open_filelike_object(fixture, request):
+    ctr = request.getfuncargvalue(fixture)
     assert list(ctr.open('r')) == LINES_CONTENT
     assert ctr.open('r').read() == STRING_CONTENT
     assert ctr.open('rb').read() == BYTES_CONTENT

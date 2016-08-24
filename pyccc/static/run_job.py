@@ -24,48 +24,42 @@ from __future__ import print_function, unicode_literals, absolute_import, divisi
 import os
 import types
 import sys
-import pickle as cp
+import pickle
 import traceback as tb
 
 
-RENAMETABLE = {'pyccc.python': 'source',
-               '__main__': 'source'}
+class MappedUnpickler(pickle.Unpickler):
+    RENAMETABLE = {'pyccc.python': 'source',
+                   '__main__': 'source'}
 
+    def find_class(self, module, name):
+        """ This override is here to help pickle find the modules that classes are defined in.
 
-def unpickle_with_remap(fileobj):
-    """ This function remaps pickled classnames. It's specifically here to remap the
-    "PackagedFunction" class from pyccc to the __main__ module.
+        It does three things:
+         1) remaps the "PackagedFunction" class from pyccc to the `source.py` module.
+         2) Remaps any classes created in the client's '__main__' to the `source.py` module
+         3) Creates on-the-fly modules to store any other classes present in source.py
 
-    References:
-        This was taken without modification from
-        https://wiki.python.org/moin/UsingPickle/RenamingModules
-    """
-    import pickle
-    import source
+        References:
+            This is a modified version of the 2-only recipe from
+            https://wiki.python.org/moin/UsingPickle/RenamingModules.
+            It's been modified for 2/3 cross-compatibility
+        """
+        modname = self.RENAMETABLE.get(module, module)
 
-    def mapname(name):
-        if name in RENAMETABLE:
-            return RENAMETABLE[name]
-        return name
-
-    def mapped_load_global(self):
-        modname = mapname(self.readline()[:-1])
-        name = mapname(self.readline()[:-1])
         try:
-            klass = self.find_class(modname, name)
-        except ImportError:  # if necessary, create a module and put the class there
+            # can't use ``super`` here (different callsigs in 2 vs 3)
+            klass = pickle.Unpickler.find_class(self, modname, name)
+
+        except ImportError:
             if hasattr(source, name):
                 newmod = types.ModuleType(modname)
                 sys.modules[modname] = newmod
                 setattr(newmod, name, getattr(source, name))
             klass = self.find_class(modname, name)
-            klass.__module__ = modname
 
-        self.append(klass)
-
-    unpickler = pickle.Unpickler(fileobj)
-    unpickler.dispatch[pickle.GLOBAL] = mapped_load_global
-    return unpickler.load()
+        klass.__module__ = module
+        return klass
 
 
 if __name__ == '__main__':
@@ -73,8 +67,8 @@ if __name__ == '__main__':
     os.environ['IS_PYCCC_JOB'] = '1'
     try:
         # Deserialize and set up the packaged function (see pyccc.python.PackagedFunction)
-        with open('function.pkl', 'r') as pf:
-            job = unpickle_with_remap(pf)
+        with open('function.pkl', 'rb') as pf:
+            job = MappedUnpickler(pf).load()
 
         if not hasattr(job, 'obj'):  # it's a standalone function
             func = getattr(source, job.__name__)
@@ -85,17 +79,19 @@ if __name__ == '__main__':
         result = job.run(func)
 
         # Serialize the results
-        with open('_function_return.pkl', 'w') as rp:
-            cp.dump(result, rp, cp.HIGHEST_PROTOCOL)
+        with open('_function_return.pkl', 'wb') as rp:
+            pickle.dump(result, rp, pickle.HIGHEST_PROTOCOL)
         if job.is_imethod:
-            with open('_object_state.pkl', 'w') as ofp:
-                cp.dump(job.obj, ofp, cp.HIGHEST_PROTOCOL)
+            with open('_object_state.pkl', 'wb') as ofp:
+                pickle.dump(job.obj, ofp, pickle.HIGHEST_PROTOCOL)
 
-    # Catch all exceptions and return them to the client
+    # Catch exception, save it, raise
     except Exception as exc:
-        with open('exception.pkl', 'w') as excfile:
-            cp.dump(exc, excfile)
+        with open('exception.pkl', 'wb') as excfile:
+            pickle.dump(exc, excfile)
         with open('traceback.txt', 'w') as tbfile:
             tb.print_exc(file=tbfile)
+
+        raise
 
 

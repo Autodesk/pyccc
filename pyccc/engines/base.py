@@ -54,11 +54,10 @@ class EngineBase(object):
             image (str): name of the docker image to launch
             command (str): shell command to run
         """
-        if issubclass(command.__class__, PythonCall):
-            JobClass = PythonJob
+        if isinstance(command, PythonCall):
+            return PythonJob(self, image, command, **kwargs)
         else:
-            JobClass = Job
-        return JobClass(self, image, command, **kwargs)  # creates and submits the job
+            return Job(self, image, command, **kwargs)
 
     def submit(self, job):
         """
