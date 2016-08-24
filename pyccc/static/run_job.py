@@ -27,6 +27,8 @@ import sys
 import pickle
 import traceback as tb
 
+PICKLE_PROTOCOL = 2  # required for 2/3 compatible pickle objects
+
 
 class MappedUnpickler(pickle.Unpickler):
     RENAMETABLE = {'pyccc.python': 'source',
@@ -48,7 +50,7 @@ class MappedUnpickler(pickle.Unpickler):
         modname = self.RENAMETABLE.get(module, module)
 
         try:
-            # can't use ``super`` here (different callsigs in 2 vs 3)
+            # can't use ``super`` here (not 2/3 compatible)
             klass = pickle.Unpickler.find_class(self, modname, name)
 
         except ImportError:
@@ -80,15 +82,15 @@ if __name__ == '__main__':
 
         # Serialize the results
         with open('_function_return.pkl', 'wb') as rp:
-            pickle.dump(result, rp, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(result, rp, PICKLE_PROTOCOL)
         if job.is_imethod:
             with open('_object_state.pkl', 'wb') as ofp:
-                pickle.dump(job.obj, ofp, pickle.HIGHEST_PROTOCOL)
+                pickle.dump(job.obj, ofp, PICKLE_PROTOCOL)
 
     # Catch exception, save it, raise
     except Exception as exc:
         with open('exception.pkl', 'wb') as excfile:
-            pickle.dump(exc, excfile)
+            pickle.dump(exc, excfile, PICKLE_PROTOCOL)
         with open('traceback.txt', 'w') as tbfile:
             tb.print_exc(file=tbfile)
 

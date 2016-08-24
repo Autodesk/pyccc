@@ -39,6 +39,7 @@ __all__ = []
 
 PYTHON_JOB_FILE = LocalFile('%s/static/run_job.py' % pyccc.PACKAGE_PATH)
 DEFAULT_INTERPRETER = 'python%s.%s' % sys.version_info[:2]
+PICKLE_PROTOCOL = 2  # required for 2/3 compatibile pickle objects
 
 
 @exports
@@ -106,8 +107,9 @@ class PythonJob(job.Job):
         python_files = {'run_job.py': PYTHON_JOB_FILE}
 
         remote_function = PackagedFunction(self.function_call)
-        python_files['function.pkl'] = pyccc.BytesContainer(pickle.dumps(remote_function, protocol=2),
-                                                            name='function.pkl')
+        python_files['function.pkl'] = pyccc.BytesContainer(
+                pickle.dumps(remote_function, protocol=PICKLE_PROTOCOL),
+                name='function.pkl')
 
         sourcefile = StringContainer(self._get_source(),
                                      name='source.py')

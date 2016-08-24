@@ -87,7 +87,7 @@ class Subprocess(EngineBase):
             if os.path.islink(dir):
                 continue
             elif os.path.isdir(fname):
-                dirfiles = job._list_output_files(dir=abs_path)
+                dirfiles = self._list_output_files(job, dir=abs_path)
                 filenames.update({'%s/%s' % (fname, f): obj
                                   for f, obj in dirfiles.items()})
             else:
