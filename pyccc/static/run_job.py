@@ -76,9 +76,9 @@ if __name__ == '__main__':
         with open('function.pkl', 'r') as pf:
             job = unpickle_with_remap(pf)
 
-        if hasattr(job, '__name__'):
+        if not hasattr(job, 'obj'):  # it's a standalone function
             func = getattr(source, job.__name__)
-        else:
+        else:  # it's an instance method
             func = None
 
         # Run the function!

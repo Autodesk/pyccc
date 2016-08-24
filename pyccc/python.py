@@ -212,7 +212,7 @@ class PackagedFunction(object):
 
         # Store the function, arguments (and its object if necessary)
         func = function_call.function
-        self.is_imethod = hasattr(func, 'im_self')
+        self.is_imethod = hasattr(func, '__self__')
         if self.is_imethod:
             self.obj = func.__self__
             self.imethod_name = func.__name__

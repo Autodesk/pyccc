@@ -59,6 +59,8 @@ def getsource(classorfunc):
         cls = classorfunc
         base_imports = {}
         for base in cls.__bases__:
+            if base.__name__ == 'object' and base.__module__ == 'builtins':  # don't import `object`
+                continue
             if base in base_imports:
                 continue
             if base.__module__ == '__main__':
