@@ -50,7 +50,7 @@ def subprocess_engine():
     return pyccc.Subprocess()
 
 
-# @typedfixture('engine')  # disabled temporarily
+@typedfixture('engine')
 def public_ccc_engine():
     return pyccc.CloudComputeCannon('cloudcomputecannon.bionano.autodesk.com:9000')
 

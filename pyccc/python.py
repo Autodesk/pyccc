@@ -17,8 +17,7 @@ Functions to that allow python commands to be run as jobs with the platform API
 from __future__ import print_function, unicode_literals, absolute_import, division
 from future import standard_library
 standard_library.install_aliases()
-from future.builtins import str, bytes, dict, list
-from future.builtins import object as futureobject
+from future.builtins import *
 
 import sys
 import pickle
@@ -29,6 +28,8 @@ from pyccc import job
 from pyccc import source_inspections as src
 from pyccc.exceptions import ProgramFailure
 from pyccc.files import StringContainer, LocalFile
+
+from ._native import native
 
 
 def exports(o):
@@ -43,7 +44,7 @@ PICKLE_PROTOCOL = 2  # required for 2/3 compatibile pickle objects
 
 
 @exports
-class PythonCall(futureobject):
+class PythonCall(object):
     def __init__(self, function, *args, **kwargs):
         self.function = function
         self.args = args
@@ -211,7 +212,7 @@ class PythonJob(job.Job):
 # Note: PackagedFunction does NOT inherit from `future.builtins.object` - that would introduce a
 # dependency on the `future` package when we try to run this remotely. Instead, we just use the
 # interpreter's built-in `object` type.
-class PackagedFunction(object):
+class PackagedFunction(native.object):
     """
     This object captures enough information to serialize, deserialize, and run a
     python function

@@ -1,5 +1,3 @@
-from __future__ import print_function
-from builtins import object
 # Copyright 2016 Autodesk Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +11,11 @@ from builtins import object
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import print_function, unicode_literals, absolute_import, division
+from future import standard_library
+standard_library.install_aliases()
+from future.builtins import *
+
 import base64
 
 import requests
@@ -74,8 +77,8 @@ class JsonRpcProxy(object):
                 inputs = []
                 for key, value in kwargs['inputs'].items():
                     if hasattr(value, 'read'):
-                        value = value.read()
-                    try:
+                        value = value.read('rb')
+                    try:  # TODO: this part needs to be completely redone
                         encoded = value.encode('utf8')
                     except UnicodeDecodeError:
                         encoded = base64.b64encode(value)
