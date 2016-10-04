@@ -300,9 +300,14 @@ class LazyDockerCopy(LazyFetcherBase):
         See http://stackoverflow.com/questions/22683410/docker-python-client-api-copy
         """
         import docker
+
         self._open_tmpfile()
         client = docker.Client(**self.dockerhost)
-        request = client.copy(self.containerid, self.containerpath)
+        args = (self.containerid, self.containerpath)
+        if hasattr(client, 'get_archive'):  # handle different docker-py versions
+            request, meta = client.get_archive(*args)
+        else:
+            request = client.copy(*args)
 
         # from stackoverflow link
         filelike = StringIO.StringIO(request.read())
