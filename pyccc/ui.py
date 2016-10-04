@@ -27,6 +27,7 @@ else:
 
 __all__ = 'JobStatusDisplay'.split()
 
+
 if widgets_enabled:
     try:
         ipy.Text()
@@ -34,6 +35,7 @@ if widgets_enabled:
         widgets_enabled = False
     else:
         widgets_enabled = True
+
 
 class JobStatusDisplay(Box):
     """
@@ -54,7 +56,7 @@ class JobStatusDisplay(Box):
         self.on_displayed(self.update)
 
     def update(self, *args):
-        status = self._job.status
+        jobstat = self._job.status
         status_display = StatusView(self._job)
         if self._job.inputs:
             input_browser = FileBrowser(self._job.inputs, margin=5, font_size=9)
@@ -64,7 +66,7 @@ class JobStatusDisplay(Box):
         file_browser.set_title(0, 'Input files')
         file_browser.selected_index = -1
 
-        if status == 'finished':
+        if jobstat == status.FINISHED:
             output_files = self._job.get_output()
             if self._job.stdout:
                 output_files['Standard output'] = self._job.stdout
@@ -176,6 +178,7 @@ class FileView(Box):
 class StatusView(Box):
     STATUS_STRING = ('<h5>Job: %s</h5>'
                      '<b>Provider:</b> %s<br>'
+                     '<b>JobId:</b> %s<br>'
                      '<b>Image: </b>%s<br>'
                      '<b>Command: </b>%s<br>'
                      '<b>Status:</b> %s</font>')
@@ -185,16 +188,18 @@ class StatusView(Box):
 
         super(StatusView,self).__init__(**kwargs)
         self._job = job
-        text = ipy.HTML(self.STATUS_STRING % (job.name,
-                                              job.get_engine_description(),
+        stat = job.status
+        text = ipy.HTML(self.STATUS_STRING%(job.name,
+                                              str(job.engine),
+                                              job.jobid,
                                               job.image,
                                               job.command,
-                                              job.status))
-        if job.status == status.QUEUED:
+                                            stat))
+        if stat == status.QUEUED:
             bar_spec = dict(value=1, bar_style='danger')
-        elif job.status == status.RUNNING:
+        elif stat == status.RUNNING:
             bar_spec = dict(value=50, bar_style='info')
-        elif job.status == status.FINISHED:
+        elif stat == status.FINISHED:
             bar_spec = dict(value=100, bar_style='success')
         else:
             bar_spec = dict(value=100, bar_style='danger')

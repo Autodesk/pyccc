@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import base64
+
 import requests
 import json
 import funcsigs
@@ -26,12 +28,13 @@ class JsonRpcProxy(object):
 
         # create python docstrings
         self._docstrings = {}
-        self._funcnames = []
+        self._funcnames = {}
         self._sigs = {}
         response = requests.get(self.host.rstrip('/'))
         for funcjson in response.json():
             fname = funcjson['alias']
-            self._funcnames.append(fname)
+            pyname = fname.replace('-', '_')
+            self._funcnames[pyname] = fname
             dslist = [funcjson['doc']]
             funcargs = []
 
@@ -48,29 +51,45 @@ class JsonRpcProxy(object):
             self._docstrings[fname] = '\n'.join(dslist)
 
     def __dir__(self):
-        return self.__dict__.keys() + self._funcnames
+        return self._funcnames.keys() + self.__dict__.keys()
 
-    def __getattr__(self, *args):
+    def __getattr__(self, attrname):
         host = self.host
-        method = args[0]
+        method = self._funcnames[attrname]
 
         def jsonRpcFunction(**kwargs):
-            jsonRpcRequest = {
-                'jsonrpc': '2.0',
-                'id': '_',  # '_' means this client is not managing jsonrpc ids.
-                'method': method,
-                'params': {}
-            }
 
-            files = {}
+            jsonRpcRequest = {'jsonrpc': '2.0',
+                              'id': '_',  # '_' means this client is not managing jsonrpc ids.
+                              'method': method,
+                              'params': {'inputs': []}
+                              }
+            jsonRpcRequest['params'].update(kwargs)
 
-            for key, value in kwargs.iteritems():
-                if isinstance(value, file):
-                    files[key] = value
-                else:
-                    jsonRpcRequest['params'][key] = value
+            # TODO: This is bad! Files should not be read into memory.
+            # TODO: also need to account for non-local files (like URLs, files on the web, etc)
+            if kwargs.get('inputs', None) is not None:
+                inputs = []
+                for key, value in kwargs['inputs'].iteritems():
+                    if hasattr(value, 'read'):
+                        value = value.read()
+                    try:
+                        encoded = value.encode('utf8')
+                    except UnicodeDecodeError:
+                        encoded = base64.b64encode(value)
+                        encoding = 'base64'
+                    else:
+                        encoding = 'utf8'
+                    inputs.append({'type': 'inline',
+                                   'value': encoded,
+                                   'name': key,
+                                   'encoding': encoding
+                                   })
+
+                    jsonRpcRequest['params']['inputs'] = inputs
 
             response = None
+            files = {}  # TODO: disabled for now - just sending everything as strings
             if files:
                 # Add the JSON-RPC message to the multipart message
                 fileParts = {'jsonrpc': ('jsonrpc', json.dumps(jsonRpcRequest))}
@@ -85,22 +104,27 @@ class JsonRpcProxy(object):
                     print 'headers:', headers
                     print 'data:', json.dumps(jsonRpcRequest)
 
-                response = requests.post(host, headers=headers, data=json.dumps(jsonRpcRequest))
+                response = requests.post(host,
+                                         headers=headers,
+                                         data=json.dumps(jsonRpcRequest))
 
             try:
                 responseJson = response.json()
             except ValueError:
                 raise ValueError('Non-json response (Status %s): %s' %
                                  (response.status_code, response.reason), response)
+            else:
+                if self.debug: print 'Response:',responseJson
 
             if 'error' in responseJson:
                 raise ValueError(responseJson['error'])
 
             if self.debug:
                 try:
-                    print 'link:', 'http://' + host.split('/')[2] + '/' + responseJson['result']['jobId']
-                except KeyError:
-                    pass
+                    print 'link:', \
+                        'http://' + host.split('/')[2] + '/' + responseJson['result']['jobId']
+                except:
+                    print 'failed to generate link to job ...'
             return responseJson['result']
 
         jsonRpcFunction.__doc__ = self._docstrings[method]

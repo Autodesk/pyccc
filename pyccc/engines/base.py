@@ -28,7 +28,19 @@ class EngineBase(object):
 
     @property
     def name(self):
-        return type(self).__name__
+        """ str: same as str(self) (for backwards compatibility)
+        """
+        return str(self)
+
+    def __str__(self):
+        return '%s engine on host: %s' % (type(self).__name__, self.hostname)
+
+    def __repr__(self):
+        try:
+            return '<%s>' % str(self)
+        except:
+            return '<%s engine at %s (custom __repr__ failed)>' % (
+                type(self).__name__, hex(id(self)))
 
     def launch(self, image, command, **kwargs):
         """
@@ -43,12 +55,6 @@ class EngineBase(object):
         else:
             JobClass = Job
         return JobClass(self, image, command, **kwargs)  # creates and submits the job
-
-    def get_engine_description(self, job):
-        """
-        Return a text description for the UI
-        """
-        return "Abstract base engine"
 
     def submit(self, job):
         """
