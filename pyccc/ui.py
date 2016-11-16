@@ -11,6 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import sys
+
 from pyccc import status
 
 try:
@@ -28,13 +31,15 @@ else:
 __all__ = 'JobStatusDisplay'.split()
 
 
-if widgets_enabled:
-    try:
-        ipy.Text()
-    except traitlets.TraitError:
+if widgets_enabled:  # from http://stackoverflow.com/a/34092072/1958900
+    if 'IPython' not in sys.modules:
+        # IPython hasn't been imported, definitely not
         widgets_enabled = False
     else:
-        widgets_enabled = True
+        from IPython import get_ipython
+        # check for `kernel` attribute on the IPython instance
+        widgets_enabled = getattr(get_ipython(), 'kernel', None) is not None
+
 
 
 class JobStatusDisplay(Box):
