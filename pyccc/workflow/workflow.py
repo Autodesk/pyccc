@@ -1,5 +1,4 @@
 import funcsigs
-import pyccc
 
 
 class Workflow(object):
@@ -7,9 +6,8 @@ class Workflow(object):
         self.name = name
         self.default_image = default_docker_image
         self.tasks = {}
-        self.runningjobs = {}
-        self.finishedjobs = {}
-        self.inputs = {}
+        self.inputfields = {}
+        self.outputfields = {}
 
     def __repr__(self):
         return "Workflow %s: %d tasks" % (self.name, len(self.tasks))
@@ -33,20 +31,33 @@ class Workflow(object):
         else:
             return wraptask
 
+    def set_outputs(self, **outputs):
+        for fieldname, source in outputs.iteritems():
+            if not isinstance(source, _TaskOutput) or source.task.workflow is not self:
+                raise ValueError(
+                        "Value for output field '%s' must be the output of an internal task")
+            self.outputfields[fieldname] = source
+
+
     def input(self, name):
-        if name not in self.inputs:
-            self.inputs[name] = _ExternalInput(name)
-        return self.inputs[name]
+        if name not in self.inputfields:
+            self.inputfields[name] = _ExternalInput(name)
+        return self.inputfields[name]
 
     def edges(self):
+        """
+        Returns:
+            Mapping[str, str]: dict of the form {'source1': 'target1', ...}
+        """
         edges = {}
         for name, task in self.tasks.iteritems():
-            for fieldname, inputsource in task.inputs.iteritems():
+            for fieldname, inputsource in task.inputfields.iteritems():
                 edges.setdefault(inputsource.name, []).append('%s.%s' % (task.name, fieldname))
 
+        for name, source in self.outputfields.iteritems():
+            edges.setdefault(source.name, []).append('%s.%s' % ('OUTPUT', name))
+
         return edges
-
-
 
 
 class Task(object):
@@ -59,7 +70,7 @@ class Task(object):
             self.name = func.__name__
 
         self.signature = funcsigs.signature(func)
-        self.inputs = {}
+        self.inputfields = {}
         self.set_input_sources(**connections)
         self.job = None
 
@@ -73,7 +84,7 @@ class Task(object):
                (self.name, self.func.__module__, self.func.__name__)
 
     def __str__(self):
-        return "Task %s, inputs: %s" % (self.name, self.inputs.keys())
+        return "Task %s, inputs: %s" % (self.name, self.inputfields.keys())
 
     def set_input_sources(self, force=False, **connections):
         """ Set the inputs for this task's arguments
@@ -85,10 +96,10 @@ class Task(object):
         for inputfield, source in connections.iteritems():
             if inputfield not in self.signature.parameters:
                 raise ValueError('"%s" is not an argument of %s' % (inputfield, self.name))
-            if inputfield in self.inputs and not force:
+            if inputfield in self.inputfields and not force:
                 raise ValueError('Input field "%s" is already set for task %s' % (inputfield, self.name))
 
-            self.inputs[inputfield] = source
+            self.inputfields[inputfield] = source
 
     def __getitem__(self, item):
         """ Returns an _TaskOutput object, representing a named output of this task.
@@ -109,11 +120,19 @@ class _ExternalInput(_SourceData):
 
     This functions more as a flag than as a functional object.
     """
-    def __init__(self, name):
-        self.name = 'INPUT[%s]' % name
+    def __init__(self, key):
+        self.key = key
+        self.name = 'INPUT[%s]' % self.key
 
     def __repr__(self):
         return '<External input "%s">' % self.name
+
+    def ready(self, runner):
+        assert self.key in runner.inputs
+        return True
+
+    def getvalue(self, runner):
+        return runner.inputs[self.key]
 
 
 class _TaskOutput(_SourceData):
@@ -123,13 +142,26 @@ class _TaskOutput(_SourceData):
     def __init__(self, task, key):
         self.task = task
         self.key = key
-        self.name = '%s[%s]>' % (self.task.name, self.key)
+        self.name = '%s[%s]' % (self.task.name, self.key)
 
     def __repr__(self):
         return '<Task output %s>' % self.name
 
-    def getvalue(self):
-        if not self.task.finished:
-            raise pyccc.JobStillRunning()
+    def ready(self, runner):
+        return runner.tasks[self.task.name].finished
+
+    def getvalue(self, runner):
+        taskrunner = runner.tasks[self.task.name]
+        if not taskrunner.finished:
+            raise ValueError("Task %s is not done yet" % self.task.name)
         else:
-            return self.task.getretresult(self.key)
+            return taskrunner.getoutput(self.key)
+
+
+class _WorkflowOutput(_SourceData):
+    def __init__(self, workflow, key):
+        self.workflow = workflow
+        self.key = key
+        self.name = 'OUTPUT.%s' % self.key
+
+

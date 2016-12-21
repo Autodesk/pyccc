@@ -1,7 +1,7 @@
-from workflow import Workflow
+from pyccc import workflow
 
-app = Workflow('my app',
-               default_docker_image='moldesign_complete')
+app = workflow.Workflow('my app',
+                        default_docker_image='moldesign_complete')
 
 
 @app.task(n=app.input('startingnumber'))
@@ -9,7 +9,7 @@ def addone(n):
     return {'num': n+1}
 
 
-@app.task
+@app.task(num=addone['num'])
 def multiplier(num):
     return {'num': num*2}
 
@@ -19,5 +19,8 @@ def printnum(num):
     print num
 
 
-multiplier.set_input_sources(num=addone['num'])
+app.set_outputs(result=multiplier['num'])
 
+runner = workflow.SerialWorkflowExecutor(app, startingnumber=4)
+result = runner.run()
+print result
