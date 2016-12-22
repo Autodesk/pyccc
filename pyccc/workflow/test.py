@@ -1,3 +1,4 @@
+import pyccc
 from pyccc import workflow
 
 app = workflow.Workflow('my app',
@@ -9,18 +10,19 @@ def addone(n):
     return {'num': n+1}
 
 
-@app.task(num=addone['num'])
-def multiplier(num):
-    return {'num': num*2}
+@app.task(num=addone['num'],
+          factor=3)
+def multiply(num, factor):
+    return {'num': num*factor}
 
 
-@app.task(num=multiplier['num'])
+@app.task(num=multiply['num'])
 def printnum(num):
     print num
 
 
-app.set_outputs(result=multiplier['num'])
-
-runner = workflow.SerialWorkflowExecutor(app, startingnumber=4)
+app.set_outputs(result=multiply['num'])
+engine = pyccc.Docker()
+runner = workflow.SerialCCCRunner(app, engine, startingnumber=1)
 result = runner.run()
 print result

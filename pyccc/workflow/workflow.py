@@ -1,4 +1,5 @@
 import funcsigs
+from . import datasources as data
 
 
 class Workflow(object):
@@ -33,15 +34,11 @@ class Workflow(object):
 
     def set_outputs(self, **outputs):
         for fieldname, source in outputs.iteritems():
-            if not isinstance(source, _TaskOutput) or source.task.workflow is not self:
-                raise ValueError(
-                        "Value for output field '%s' must be the output of an internal task")
             self.outputfields[fieldname] = source
-
 
     def input(self, name):
         if name not in self.inputfields:
-            self.inputfields[name] = _ExternalInput(name)
+            self.inputfields[name] = data._ExternalInput(name)
         return self.inputfields[name]
 
     def edges(self):
@@ -95,9 +92,13 @@ class Task(object):
         """
         for inputfield, source in connections.iteritems():
             if inputfield not in self.signature.parameters:
-                raise ValueError('"%s" is not an argument of %s' % (inputfield, self.name))
+                raise ValueError('"%s" is not an argument of %s' %
+                                 (inputfield, self.name))
             if inputfield in self.inputfields and not force:
-                raise ValueError('Input field "%s" is already set for task %s' % (inputfield, self.name))
+                raise ValueError('Input field "%s" is already set for task %s' %
+                                 (inputfield, self.name))
+            if not isinstance(source, data._SourceData):
+                source = data._ConstantData(source)
 
             self.inputfields[inputfield] = source
 
@@ -107,61 +108,6 @@ class Task(object):
         Note that these are currently not verified (unlike inputs, which are determined by
         the function's call signature.
         """
-        return _TaskOutput(self, item)
-
-
-class _SourceData(object):
-    pass
-
-
-class _ExternalInput(_SourceData):
-    """ An object representing input that will be passed from beyond the current
-     workflow's scope, (e.g., as user input).
-
-    This functions more as a flag than as a functional object.
-    """
-    def __init__(self, key):
-        self.key = key
-        self.name = 'INPUT[%s]' % self.key
-
-    def __repr__(self):
-        return '<External input "%s">' % self.name
-
-    def ready(self, runner):
-        assert self.key in runner.inputs
-        return True
-
-    def getvalue(self, runner):
-        return runner.inputs[self.key]
-
-
-class _TaskOutput(_SourceData):
-    """ A reference to a named output of a task (for internal use)
-    """
-
-    def __init__(self, task, key):
-        self.task = task
-        self.key = key
-        self.name = '%s[%s]' % (self.task.name, self.key)
-
-    def __repr__(self):
-        return '<Task output %s>' % self.name
-
-    def ready(self, runner):
-        return runner.tasks[self.task.name].finished
-
-    def getvalue(self, runner):
-        taskrunner = runner.tasks[self.task.name]
-        if not taskrunner.finished:
-            raise ValueError("Task %s is not done yet" % self.task.name)
-        else:
-            return taskrunner.getoutput(self.key)
-
-
-class _WorkflowOutput(_SourceData):
-    def __init__(self, workflow, key):
-        self.workflow = workflow
-        self.key = key
-        self.name = 'OUTPUT.%s' % self.key
+        return data._TaskOutput(self, item)
 
 
