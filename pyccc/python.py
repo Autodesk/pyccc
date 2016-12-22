@@ -222,6 +222,8 @@ class PackagedFunction(object):
             else:
                 self.global_closure[name] = value
 
+        self._separate_io_fields = getattr(function_call, 'separate_fields', None)
+
     def run(self, func=None):
         """
         Evaluates the packaged function as func(*self.args,**self.kwargs)

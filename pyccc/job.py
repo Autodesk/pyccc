@@ -67,7 +67,6 @@ class Job(object):
                  name='untitled',
                  submit=True,
                  inputs=None,
-                 outputs=None,
                  requirements=None,
                  numcpus=1,
                  runtime=3600,
@@ -93,6 +92,13 @@ class Job(object):
         self.numcpus = numcpus
         self.runtime = runtime
 
+        self._reset()
+
+        if submit and self.engine and self.image:
+            self.submit()
+
+    def _reset(self):
+        self._submitted = False
         self._started = False
         self._final_stdout = None
         self._final_stderr = None
@@ -101,8 +107,6 @@ class Job(object):
         self._output_files = None
         self.jobid = None
         self._stopped = None
-
-        if submit and self.engine and self.image: self.submit()
 
     kill = EngineFunction('kill')
     get_stdout_stream = EngineFunction('get_stdoutstream')
@@ -126,9 +130,26 @@ class Job(object):
         return '<%s>' % s
 
 
-    def submit(self, block=False):
+    def submit(self, wait=False, resubmit=False):
+        """ Submit this job to the assigned engine.
+
+        Args:
+            wait (bool): wait until the job completes?
+            resubmit (bool): clear all job info and resubmit the job?
+
+        Raises:
+            ValueError: If the job has been previously submitted (and resubmit=False)
+        """
+        if self._submitted:
+            if resubmit:
+                self._reset()
+            else:
+                raise ValueError('This job has already been submitted')
+
         self.engine.submit(self)
-        if block: self.wait()
+        self._submitted = True
+        if wait: self.wait()
+
 
     def wait(self):
         """Wait for job to finish"""
@@ -150,7 +171,6 @@ class Job(object):
             return stat
         else:
             return "Unsubmitted"
-
 
     def _finish_job(self):
         """

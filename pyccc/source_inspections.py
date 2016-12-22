@@ -33,21 +33,27 @@ def getsource(classorfunc):
         source = getsourcefallback(classorfunc)
 
     declaration = []
-    sourcefile = []
-    found_decl = False
-    # Strip function decorators, separate declaration from code
-    for iline, line in enumerate(source.split('\n')):
-        if iline == 0 and line.strip().startswith('@'): continue
-        if found_decl:
-            sourcefile.append(line)
-        else:
+
+    sourcelines = iter(source.splitlines())
+
+    # First, get the declaration
+    found_keyword = False
+    for line in sourcelines:
+        words = line.split()
+        if not words:
+            continue
+        if words[0] in ('def', 'class'):
+            found_keyword = True
+        if found_keyword:
             cind = line.find(':')
             if cind > 0:
-                found_decl = True
                 declaration.append(line[:cind + 1])
                 after_decl = line[cind + 1:].strip()
+                break
             else:
                 declaration.append(line)
+
+    bodylines = list(sourcelines)  # the rest of the lines are body
 
     # If it's a class, make sure we import its superclasses
     # Unfortunately, we need to modify the code to make sure the
@@ -75,7 +81,7 @@ def getsource(classorfunc):
     else:
         declaration[-1] += after_decl
 
-    return '\n'.join(declaration + sourcefile)
+    return '\n'.join(declaration + bodylines)
 
 
 def getsourcefallback(cls):
@@ -91,7 +97,7 @@ def getsourcefallback(cls):
             break
     else:
         raise AttributeError(
-            "This class doesn't have an instance method, create one to cloudify it")
+            "Cannot get this class' source; it does not appear to have any methods")
 
     ### This part is derived from inspect.findsource ###
     module = inspect.getmodule(cls)
