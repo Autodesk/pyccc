@@ -1,8 +1,35 @@
+# Copyright 2016 Autodesk Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
 import funcsigs
 from . import datasources as data
 
 
 class Workflow(object):
+    """ This object holds a workflow specification.
+
+    A workflow describes the relationship between a series of tasks,
+    specifically how outputs from an early task should be used as input
+    fields for later tasks.
+
+    Note that Workflow objects only specify these relationships; they
+    do NOT describe an actual running workflow. To run a workflow,
+    a WorkflowRunner subclass should be used to run a specific instance
+    of a workflow on a computing backend.
+    """
+
     def __init__(self, name, default_docker_image='python:2.7-slim'):
         self.name = name
         self.default_image = default_docker_image
@@ -58,6 +85,22 @@ class Workflow(object):
 
 
 class Task(object):
+    """ A Task is the basic computational unit of a workflow.
+
+    Each task has a series of input and output fields. A task is ready
+    to run when all of its input fields have been supplied with data.
+
+    Input fields generally get data from:
+      1) Workflow input,
+      2) output from another Task, or
+      3) as a constant parameter in the Workflow definition.
+
+    Note that these objects are only used to DESCRIBE a workflow -
+    they don't RUN anything. For debugging convenience, however,
+    a task can be executed in python by calling it, and passing values
+    for its input fields as keyword arguments.
+    """
+
     def __init__(self, func, workflow, image, name=None, **connections):
         self.func = func
         self.image = image
@@ -69,7 +112,6 @@ class Task(object):
         self.signature = funcsigs.signature(func)
         self.inputfields = {}
         self.set_input_sources(**connections)
-        self.job = None
 
     def __call__(self, *args, **kwargs):
         """ Calling this object will call the wrapped function as normal
