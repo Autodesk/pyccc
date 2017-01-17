@@ -11,30 +11,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from pyccc import status
+import sys
 
-try:
+from pyccc import status, utils
+
+if utils.can_use_widgets():
+    widgets_enabled = True
+    from ipywidgets import Box, Tab
     import ipywidgets as ipy
     import traitlets
-except ImportError:
+
+else:
     widgets_enabled = False
     ipy = traitlets = None
     Box = Tab = object
-else:
-    widgets_enabled = True
-    from ipywidgets import Box, Tab
 
 
 __all__ = 'JobStatusDisplay'.split()
-
-
-if widgets_enabled:
-    try:
-        ipy.Text()
-    except traitlets.TraitError:
-        widgets_enabled = False
-    else:
-        widgets_enabled = True
 
 
 class JobStatusDisplay(Box):

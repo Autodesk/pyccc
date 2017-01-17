@@ -12,120 +12,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pickle
-import pyccc
+from . import taskrunner
 
 
-class TaskRunner(object):
-    def __init__(self, task, parentrunner):
-        self.spec = task
-        self.parentrunner = parentrunner
-        self._expectedfields = set(self.spec.inputfields)
-
-    @property
-    def ready(self):
-        return len(self._expectedfields) == 0
-
-
-class TaskRuntimeRunner(TaskRunner):
-    """
-    Runs this task here (i.e., by directly calling the functions in this runtime).
-    """
-    def __init__(self, task, parentrunner):
-        super(TaskRuntimeRunner, self).__init__(task, parentrunner)
-        self._inputs = {}
-        self._result = None
-
-    def connect_input(self, fieldname, source):
-        if fieldname not in self._expectedfields and fieldname not in self._inputs:
-            raise ValueError('Task "%s" received an unknown input field "%s"' %
-                             (self.spec.name, fieldname))
-        elif fieldname not in self._expectedfields:
-            return
-        self._expectedfields.remove(fieldname)
-        self._inputs[fieldname] = source.getvalue(self.parentrunner)
-
-    def run(self):
-        self._result = self.spec(**self._inputs)
-        if self._result is None:
-            self._result = {}
-
-    @property
-    def ready(self):
-        return len(self._expectedfields) == 0
-
-    @property
-    def finished(self):
-        return self._result is not None
-
-    def getoutput(self, field):
-        return self._result[field]
-
-
-class TaskCCCRunner(TaskRunner):
-    """
-    Run a workflow SERIALLY with CCC computes.
-    """
-    def __init__(self, task, engine, parentrunner):
-        super(TaskCCCRunner, self).__init__(task, parentrunner)
-        self.job = None
-        self.engine = engine
-        self._inputpickles = {}
-        self._outputpickles = {}
-        self._inputfields = []
-
-    def connect_input(self, fieldname, source):
-        if fieldname not in self._expectedfields and fieldname not in self._inputfields:
-            raise ValueError('Task "%s" received an unknown input field "%s"' %
-                             (self.spec.name, fieldname))
-        elif fieldname not in self._expectedfields:
-            return
-        self._expectedfields.remove(fieldname)
-        self._inputfields.append(fieldname)
-        self._inputpickles['inputs/%s.pkl' % fieldname] = source.getpickle(self.parentrunner)
-
-    def run(self):
-        funccall = pyccc.PythonCall(self.spec.func)
-        funccall.separate_fields = self._inputfields
-        self.job = self.engine.launch(command=funccall,
-                                      image=self.spec.image,
-                                      inputs=self._inputpickles)
-        self.job.wait()
-        self._getoutputs()
-
-    def _getoutputs(self):
-        fields = self.job.get_output('outputfields.txt').read().splitlines()
-
-        for f in fields:
-            self._outputpickles[f] = self.job.get_output('outputs/%s.pkl' % f)
-
-    @property
-    def finished(self):
-        return self.job is not None and self.job.status.lower() == 'finished'
-
-    def getpickle(self, field):
-        return self._outputpickles[field]
-
-    def getoutput(self, field):
-        return pickle.loads(self.getpickle(field).read())
-
-
-class SerialRunner(object):
-    """
-    Runs a workflow, serially, in this python interpreter. Not distributed in the slightest.
-    """
-    TaskExecutor = TaskRuntimeRunner
-
+class AbstractWorkflowRunner(object):
     def __init__(self, workflow, **inputs):
         self.workflow = workflow
         self.inputs = inputs
-        self.tasks = {name: self.TaskExecutor(task, self)
-                      for name, task in self.workflow.tasks.iteritems()}
+        self._validate_inputs()
 
-    def prepare_inputs(self, task):
+    def _validate_inputs(self):
+        expected = set(self.workflow.inputfields)
+        provided = set(self.inputs)
+
+        missing = expected - provided
+        extra = provided - expected
+
+        if len(missing) > 0:
+            raise ValueError('The following input fields need to be specified: %s' %
+                             ','.join(missing))
+
+        if len(extra) > 0:
+            raise ValueError('The following provided input was not recognized: %s' %
+                             ','.join(extra))
+
+    def _prepare_inputs(self, task):
+        """ Hooks data up to a task's input fields
+        """
         for fieldname, source in task.spec.inputfields.iteritems():
             if source.ready(self):
                 task.connect_input(fieldname, source)
+
+    @property
+    def finished(self):
+        raise NotImplementedError()
+
+    @property
+    def outputs(self):
+        raise NotImplementedError()
+
+
+class SerialRuntimeRunner(AbstractWorkflowRunner):
+    """
+    Runs a workflow, serially, in this python interpreter. Not distributed in the slightest.
+    """
+    TaskRunner = taskrunner.TaskRuntimeRunner
+
+    def __init__(self, workflow, **inputs):
+        super(SerialRuntimeRunner, self).__init__(workflow, **inputs)
+        self.tasks = {name: self.TaskRunner(task, self)
+                      for name, task in self.workflow.tasks.iteritems()}
+        self._outputs = None
+        self._finished = False
 
     def run(self):
         print 'Starting workflow "%s" with inputs %s' % (self.workflow.name, self.inputs)
@@ -141,7 +79,7 @@ class SerialRunner(object):
                 finished = False
 
                 if not task.ready:
-                    self.prepare_inputs(task)
+                    self._prepare_inputs(task)
 
                 if task.ready:
                     stuck = False
@@ -155,16 +93,27 @@ class SerialRunner(object):
             if stuck:
                 raise ValueError('No tasks are ready to run ...')
 
-        return {fieldname: source.getvalue(self)
-                for fieldname, source in self.workflow.outputfields.iteritems()}
+        self._finished = True
+        self._outputs = {fieldname: source.getvalue(self)
+                         for fieldname, source in self.workflow.outputfields.iteritems()}
+
+        return self._outputs
+
+    @property
+    def finished(self):
+        return self._finished
+
+    @property
+    def outputs(self):
+        return self._outputs
 
 
-class SerialCCCRunner(SerialRunner):
-    TaskExecutor = TaskCCCRunner
+class SerialCCCRunner(SerialRuntimeRunner):
+    TaskRunner = taskrunner.TaskCCCRunner
 
     def __init__(self, workflow, engine, **inputs):
         self.workflow = workflow
         self.inputs = inputs
-        self.tasks = {name: self.TaskExecutor(task, engine, self)
+        self.tasks = {name: self.TaskRunner(task, engine, self)
                       for name, task in self.workflow.tasks.iteritems()}
 

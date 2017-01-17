@@ -18,36 +18,66 @@ from . import datasources as data
 
 
 class Workflow(object):
-    """ This object holds a workflow specification.
+    """ ``Workflow`` objects are used to construct and store workflow specifications.
 
     A workflow describes the relationship between a series of tasks,
-    specifically how outputs from an early task should be used as input
-    fields for later tasks.
+    specifically how outputs from tasks should be used as inputs
+    for subsequent tasks.
 
-    Note that Workflow objects only specify these relationships; they
-    do NOT describe an actual running workflow. To run a workflow,
-    a WorkflowRunner subclass should be used to run a specific instance
-    of a workflow on a computing backend.
+    Note that Workflow objects only _describe_ the workflow. To _run_ a workflow,
+    you will use a :class:`pyccc.workflow.WorkflowRunner`-derived class.
+
+    Args:
+        name (str): name of this workflow
+        metadata (workflow.Metadata): metadata object with fields to classify
+           this workflow (optional)
+        default_docker_image (str): run all tasks in this docker image unless
+            a different image is explicitly specified
     """
 
-    def __init__(self, name, default_docker_image='python:2.7-slim'):
+    def __init__(self, name, metadata=None,
+                 default_docker_image='python:2.7-slim'):
         self.name = name
         self.default_image = default_docker_image
         self.tasks = {}
         self.inputfields = {}
         self.outputfields = {}
+        self.metadata = metadata
 
     def __repr__(self):
-        return "Workflow %s: %d tasks" % (self.name, len(self.tasks))
+        return 'Workflow "%s": %d inputs, %d tasks, %s outputs' % \
+               (self.name, len(self.inputfields), len(self.tasks), len(self.outputfields))
 
-    def task(self, func=None, image=None, taskname=None, **connections):
+    def task(self, func=None, image=None, taskname=None, output_type='python', **connections):
+        """ Function decorator for adding python functions to this workflow as tasks
+
+        Args:
+            image (str): docker image to run this task in (default: self.default_image)
+            taskname (str): name of this task (default: function.__name__)
+            **connections (dict): mapping from function arguments to source data
+
+        Examples:
+            >>> from pyccc.workflow import Workflow
+            >>> workflow = Workflow('example')
+            >>>
+            >>> @workflow.task(in1=3,
+            ...                in2=workflow.input('inputfield'))
+            >>> def task_function(in1, in2):
+            >>>     return {'out1':in1+in2,
+            ...             'out2':in1-in2}
+        """
         if image is None:
             image = self.default_image
 
         def wraptask(f):
-            assert callable(f)
-            n = Task(f, self, image, name=taskname, **connections)
+            """ Wrapper for the :meth:`Workflow.task` decorator.
 
+            Returns:
+                Task: the Task version of the function.
+            """
+            if not callable(f):
+                raise ValueError('"%s" is not callable and cannot be used as a task' % f)
+            n = Task(f, self, image, name=taskname, **connections)
             if n.name in self.tasks:
                 raise ValueError('A task named %s already exists in this workflow' % n.name)
 
@@ -60,10 +90,35 @@ class Workflow(object):
             return wraptask
 
     def set_outputs(self, **outputs):
+        """ Specify this workflow's outputs.
+
+        Args:
+            outputs (Mapping[str, data._SourceData]): mapping of output field names
+               to their source data
+
+        Examples:
+            >>> workflow.set_outputs(out1=task['task_output'],
+            ...                      out2=othertask['other_output'])
+        """
         for fieldname, source in outputs.iteritems():
             self.outputfields[fieldname] = source
 
     def input(self, name):
+        """ Get a reference to one of the workflow's input fields.
+
+        Used to connect workflow inputs to task inputs.
+
+        Examples:
+            >>> @workflow.task(in1=workflow.input('workflow_input'))
+            >>> def myfunction(in1):
+            ...     return {'out1':in1+1}
+
+        Args:
+            name (str): the name of the input field
+
+        Returns:
+            data._ExternalInput: a reference to this input field
+        """
         if name not in self.inputfields:
             self.inputfields[name] = data._ExternalInput(name)
         return self.inputfields[name]
@@ -85,7 +140,7 @@ class Workflow(object):
 
 
 class Task(object):
-    """ A Task is the basic computational unit of a workflow.
+    """ A ``Task`` is the basic computational unit of a workflow.
 
     Each task has a series of input and output fields. A task is ready
     to run when all of its input fields have been supplied with data.
@@ -99,8 +154,11 @@ class Task(object):
     they don't RUN anything. For debugging convenience, however,
     a task can be executed in python by calling it, and passing values
     for its input fields as keyword arguments.
-    """
 
+    Note:
+        These objects will be instantiated using the :meth:`Workflow.task`
+        decorator; they shouldn't be created by the user.
+    """
     def __init__(self, func, workflow, image, name=None, **connections):
         self.func = func
         self.image = image
@@ -109,13 +167,20 @@ class Task(object):
         if self.name is None:
             self.name = func.__name__
 
-        self.signature = funcsigs.signature(func)
+        self.__signature__ = funcsigs.signature(func)
+
+
         self.inputfields = {}
         self.set_input_sources(**connections)
 
+        #self.__call__.__doc__ += self.func.__doc__  # this doesn't work
+
     def __call__(self, *args, **kwargs):
-        """ Calling this object will call the wrapped function as normal
-        """
+        """ Calling this Task object will call the wrapped function as a normal python function.
+
+        Its documentation is included below:
+        ---------------------------------------------
+        """  # docs added in __init__
         return self.func(*args, **kwargs)
 
     def __repr__(self):
@@ -133,7 +198,7 @@ class Task(object):
             force (bool): overwrite existing connections
         """
         for inputfield, source in connections.iteritems():
-            if inputfield not in self.signature.parameters:
+            if inputfield not in self.__signature__.parameters:
                 raise ValueError('"%s" is not an argument of %s' %
                                  (inputfield, self.name))
             if inputfield in self.inputfields and not force:

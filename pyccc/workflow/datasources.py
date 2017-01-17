@@ -56,7 +56,7 @@ class _ExternalInput(_SourceData):
         return '<External input "%s">' % self.name
 
     def ready(self, runner):
-        assert self.key in runner.inputs
+        assert self.key in runner.inputs, "ERROR: external input %s not present" % self.key
         return True
 
     def getvalue(self, runner):
