@@ -15,7 +15,6 @@
 Functions to that allow python commands to be run as jobs with the platform API
 """
 import cPickle as cp
-import inspect
 
 import pyccc
 from pyccc import job
@@ -85,14 +84,16 @@ class PythonJob(job.Job):
         python_files['function.pkl'] = StringContainer(cp.dumps(remote_function, protocol=2),
                                                        'function.pkl')
 
-        sourcefile = StringContainer(self._get_source(), 'source.py')
+        sourcefile = StringContainer(self._get_source(remote_function), 'source.py')
 
         python_files['source.py'] = sourcefile
         return python_files
 
-    def _get_source(self):
+    def _get_source(self, remote_function=None):
         """
         Calls the appropriate source inspection to get any required source code
+
+        Will also get code for any functions referenced via closure (currently one level deep only)
 
         Returns:
              str: string containing source code. If the relevant code is unicode, it will be
@@ -104,19 +105,25 @@ class PythonJob(job.Job):
                 obj = func.im_self.__class__
             else:
                 obj = func
-            srclines = src.getsource(obj)
+            srclines = [src.getsource(obj)]
         elif self.function_call.is_instancemethod:
-            srclines = ''
+            srclines = ['']
         else:
-            srclines = "from %s import %s\n" % (self.function_call.function.__module__,
-                                                self.function_call.function.__name__)
+            srclines = ["from %s import %s\n"%(self.function_call.function.__module__,
+                                               self.function_call.function.__name__)]
+
+        if remote_function is not None and remote_function.global_functions:
+            for name, f in remote_function.global_functions.iteritems():
+                srclines.append('\n# source code for function "%s"' % name)
+                srclines.append(src.getsource(f))
 
         # This is the only source code needed from pyccc
-        srclines += PACKAGEDFUNCTIONSOURCE
+        srclines.append(PACKAGEDFUNCTIONSOURCE)
 
-        if isinstance(srclines, unicode):
-            srclines = '# -*- coding: utf-8 -*-\n' + srclines.encode('utf-8')
-        return srclines
+        sourcecode = '\n'.join(srclines)
+        if isinstance(sourcecode, unicode):
+            sourcecode = '# -*- coding: utf-8 -*-\n' + sourcecode.encode('utf-8')
+        return sourcecode
 
     @property
     def result(self):
@@ -188,12 +195,19 @@ class PackagedFunction(object):
     """
     This object captures enough information to serialize, deserialize, and run a
     python function
+
+    Specifically, this creates an object that, after pickling, can be unpickled and run,
+    and behave in *basically* the same way as the original function.
+
+    Notes:
+        - This is *designed* to execute arbitrary code. Use with trusted sources only!
+        - This will work best with *pure* functions operating on well-behaved python objects.
+        - All relevant variables and arguments need to be pickle-able.
+        - Object methods that only operate on the object itself can be considered "pure".
+        - Function side effects are not tracked at all.
+        - Closure variables and module references will be sent along with the function
     """
     def __init__(self, function_call):
-        """
-        Conduct and store enough introspection on the passed function and arguments so
-        that they can be serialized and run elsewhere
-        """
         # TODO: check whether pickled object can be successfully unpickled
         # i.e., make sure its functions and classes are defined in the
         # base code
@@ -209,19 +223,12 @@ class PackagedFunction(object):
         self.args = function_call.args
         self.kwargs = function_call.kwargs
 
-        # Store any methods or variables bound from the function's closure
-        closure = src.getclosurevars(func)
-        if closure.nonlocals:
-            raise TypeError("Can't launch a job with closure variables: %s"%
-                            closure.nonlocals.keys())
-        self.global_closure = {}
-        self.global_modules = {}
-        for name, value in closure.globals.iteritems():
-            if inspect.ismodule(value):
-                self.global_modules[name] = value.__name__
-            else:
-                self.global_closure[name] = value
+        globalvars = src.get_global_vars(func)
+        self.global_closure = globalvars['vars']
+        self.global_modules = globalvars['modules']
+        self.global_functions = globalvars['functions']
 
+        # this is a bit of a hack to re-use this class with workflows
         self._separate_io_fields = getattr(function_call, 'separate_fields', None)
 
     def run(self, func=None):
@@ -230,7 +237,9 @@ class PackagedFunction(object):
         If func is a method of an object, it's accessed as getattr(self.obj,func_name).
         If it's a user-defined function, it needs to be passed in here because it can't
         be serialized.
-        :return: function's return value
+
+        Returns:
+            object: function's return value
         """
         to_run = self.prepare_namespace(func)
         result = to_run(*self.args, **self.kwargs)
@@ -240,7 +249,9 @@ class PackagedFunction(object):
         """
         Prepares the function to be run after deserializing it.
         Re-associates any previously bound variables and modules from the closure
-        :return: Prepared callable function
+
+        Returns:
+            callable: ready-to-call function
         """
         if self.is_imethod:
             to_run = getattr(self.obj, self.imethod_name)
@@ -252,6 +263,8 @@ class PackagedFunction(object):
             to_run.func_globals[varname] = eval(varname)
         for name, value in self.global_closure.iteritems():
             to_run.func_globals[name] = value
+        for funcname in self.global_functions:
+            to_run.func_globals[funcname] = eval(funcname)
         return to_run
 
 PACKAGEDFUNCTIONSOURCE = '\n' + src.getsource(PackagedFunction)

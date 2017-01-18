@@ -66,7 +66,7 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
         self._finished = False
 
     def run(self):
-        print 'Starting workflow "%s" with inputs %s' % (self.workflow.name, self.inputs)
+        print 'Starting workflow "%s"' % (self.workflow.name)
 
         while True:
             stuck = True
