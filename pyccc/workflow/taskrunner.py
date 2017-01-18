@@ -13,8 +13,12 @@
 # limitations under the License.
 
 import pickle
-
 import pyccc
+
+if pyccc.ui.widgets_enabled:
+    from IPython.display import display
+else:
+    display = None
 
 
 class AbstractTaskRunner(object):
@@ -115,8 +119,17 @@ class TaskCCCRunner(AbstractTaskRunner):
         funccall.separate_fields = self._inputfields
         self.job = self.engine.launch(command=funccall,
                                       image=self.spec.image,
-                                      inputs=self._inputpickles)
-        self.job.wait()
+                                      inputs=self._inputpickles,
+                                      name=self.spec.name)
+        if display:
+            dobj = self.job.get_display_object()
+            display(dobj)
+            self.job.wait()
+            dobj.update()
+        else:
+            print 'job id %s, image %s' % (self.job.jobid, self.job.image),
+            self.job.wait()
+
         self._getoutputs()
 
     def _getoutputs(self):

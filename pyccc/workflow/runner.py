@@ -83,9 +83,7 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
 
                 if task.ready:
                     stuck = False
-                    print 'Running task %s ...' % name,
-                    task.run()
-                    print 'done'
+                    self.run_task(name, task)
 
             if finished:
                 break
@@ -98,6 +96,11 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
                          for fieldname, source in self.workflow.outputfields.iteritems()}
 
         return self._outputs
+
+    def run_task(self, name, task):
+        print 'Running task %s ...'%name,
+        task.run()
+        print 'done'
 
     @property
     def finished(self):
@@ -117,3 +120,7 @@ class SerialCCCRunner(SerialRuntimeRunner):
         self.tasks = {name: self.TaskRunner(task, engine, self)
                       for name, task in self.workflow.tasks.iteritems()}
 
+    def run_task(self, name, task):
+        print 'Running task %s ...' % name,
+        task.run()
+        print 'done'

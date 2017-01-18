@@ -129,6 +129,10 @@ class Job(object):
             s += ' at %s' % hex(id(self))
         return '<%s>' % s
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('subproc', None)
+        return state
 
     def submit(self, wait=False, resubmit=False):
         """ Submit this job to the assigned engine.
@@ -227,7 +231,3 @@ class Job(object):
             return JobStatusDisplay(self)
         else:
             return 'Job "%s" launched. id:%s' % (self.name, self.jobid)
-
-
-
-
