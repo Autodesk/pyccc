@@ -197,7 +197,8 @@ class PackagedFunction(object):
     python function
 
     Specifically, this creates an object that, after pickling, can be unpickled and run,
-    and behave in *basically* the same way as the original function.
+    and behave in *basically* the same way as the original function. HOWEVER, the function's
+    source code must be sent separately - that part can't be pickled.
 
     Notes:
         - This is *designed* to execute arbitrary code. Use with trusted sources only!
@@ -208,11 +209,6 @@ class PackagedFunction(object):
         - Closure variables and module references will be sent along with the function
     """
     def __init__(self, function_call):
-        # TODO: check whether pickled object can be successfully unpickled
-        # i.e., make sure its functions and classes are defined in the
-        # base code
-
-        # Store the function, arguments (and its object if necessary)
         func = function_call.function
         self.is_imethod = hasattr(func, 'im_self')
         if self.is_imethod:
@@ -230,6 +226,13 @@ class PackagedFunction(object):
 
         # this is a bit of a hack to re-use this class with workflows
         self._separate_io_fields = getattr(function_call, 'separate_fields', None)
+
+    def __getstate__(self):
+        """ Strip unpickleable function references before pickling
+        """
+        state = self.__dict__.copy()
+        state['global_functions'] = {key: None for key in state['global_functions']}
+        return state
 
     def run(self, func=None):
         """

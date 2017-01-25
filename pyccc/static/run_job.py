@@ -99,8 +99,7 @@ def unpickle_with_remap(fileobj):
     "PackagedFunction" class from pyccc to the __main__ module.
 
     References:
-        This was taken without modification from
-        https://wiki.python.org/moin/UsingPickle/RenamingModules
+        Based on https://wiki.python.org/moin/UsingPickle/RenamingModules
     """
     import pickle
 

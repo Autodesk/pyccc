@@ -27,6 +27,7 @@ class _SourceData(object):
     def getvalue(self, runner):
         """ Return this data's value
         """
+        raise NotImplementedError()
 
     def getpickle(self, runner):
         return pickle.dumps(self.getvalue(runner))

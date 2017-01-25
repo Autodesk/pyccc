@@ -133,7 +133,12 @@ class TaskCCCRunner(AbstractTaskRunner):
         self._getoutputs()
 
     def _getoutputs(self):
-        fields = self.job.get_output('outputfields.txt').read().splitlines()
+        try:
+            fields = self.job.get_output('outputfields.txt').read().splitlines()
+        except KeyError:
+            print 'FAILED'
+            print self.job.get_output('traceback.txt').read()
+            raise
 
         for f in fields:
             self._outputpickles[f] = self.job.get_output('outputs/%s.pkl' % f)

@@ -32,11 +32,12 @@ class Docker(EngineBase):
                 client from the job's environmental varaibles
             workingdir (str): default working directory to create in the containers
         """
-        if isinstance(client, basestring):
-            client = docker.Client(client)
 
+        if isinstance(client, basestring):
+            client = du.get_docker_apiclient(client)
         if client is None:
-            client = docker.Client(**docker.utils.kwargs_from_env())
+            client = du.get_docker_apiclient(**docker.utils.kwargs_from_env())
+
         self.client = client
         self.default_wdir = workingdir
         self.hostname = self.client.base_url
