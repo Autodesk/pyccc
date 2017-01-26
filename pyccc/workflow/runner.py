@@ -58,12 +58,13 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
     """
     TaskRunner = taskrunner.TaskRuntimeRunner
 
-    def __init__(self, workflow, **inputs):
+    def __init__(self, workflow, engine=None, **inputs):
         super(SerialRuntimeRunner, self).__init__(workflow, **inputs)
         self.tasks = {name: self.TaskRunner(task, self)
                       for name, task in self.workflow.tasks.iteritems()}
         self._outputs = None
         self._finished = False
+        assert engine is None, "This runner doesn't use an engine"
 
     def run(self):
         print 'Starting workflow "%s"' % (self.workflow.name)
