@@ -34,7 +34,6 @@ class Workflow(object):
         default_docker_image (str): run all tasks in this docker image unless
             a different image is explicitly specified
     """
-
     def __init__(self, name, metadata=None,
                  default_docker_image='python:2.7-slim'):
         self.name = name
@@ -43,17 +42,36 @@ class Workflow(object):
         self.inputfields = {}
         self.outputfields = {}
         self.metadata = metadata
+        self._preprocessor = None
 
     def __repr__(self):
         return 'Workflow "%s": %d inputs, %d tasks, %s outputs' % \
                (self.name, len(self.inputfields), len(self.tasks), len(self.outputfields))
 
-    def task(self, func=None, image=None, taskname=None, output_type='python', **connections):
+    def preprocessor(self, task):
+        """ TEMPORARY HACK. Define a task as the frontend preprocessor.
+
+        The task MUST return at least these 3 fields:
+           - success (bool)
+           - errors (str)
+           - pdbstring (str)
+        """
+
+        assert isinstance(task, Task)
+        if self._preprocessor is not None:
+            raise ValueError('Can only define one preprocessor per workflow.')
+
+        self._preprocessor = task
+
+        return task
+
+    def task(self, func=None, image=None, taskname=None, preprocess=False, **connections):
         """ Function decorator for adding python functions to this workflow as tasks
 
         Args:
             image (str): docker image to run this task in (default: self.default_image)
             taskname (str): name of this task (default: function.__name__)
+            preprocess (bool): flag this task as a preprocessing step
             **connections (dict): mapping from function arguments to source data
 
         Examples:
@@ -82,6 +100,10 @@ class Workflow(object):
                 raise ValueError('A task named %s already exists in this workflow' % n.name)
 
             self.tasks[n.name] = n
+
+            if preprocess:
+                self.preprocessing.append(n)
+
             return n
 
         if func is not None:
@@ -167,13 +189,15 @@ class Task(object):
         if self.name is None:
             self.name = func.__name__
 
-        self.__signature__ = funcsigs.signature(func)
-
-
         self.inputfields = {}
         self.set_input_sources(**connections)
 
         #self.__call__.__doc__ += self.func.__doc__  # this doesn't work
+
+    @property
+    def __signature__(self):
+        # hacky workaround because these objects can't be pickled or dill'd
+        return funcsigs.signature(self.func)
 
     def __call__(self, *args, **kwargs):
         """ Calling this Task object will call the wrapped function as a normal python function.

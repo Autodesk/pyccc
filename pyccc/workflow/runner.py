@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+from . import datasources
 from . import taskrunner
 
 
@@ -43,6 +43,15 @@ class AbstractWorkflowRunner(object):
             if source.ready(self):
                 task.connect_input(fieldname, source)
 
+    def run(self):
+        raise NotImplementedError()
+
+    def preprocess(self):
+        """ Must run the preprocessing step (and any dependencies), then save its state
+        and exit
+        """
+        raise NotImplementedError()
+
     @property
     def finished(self):
         raise NotImplementedError()
@@ -50,6 +59,10 @@ class AbstractWorkflowRunner(object):
     @property
     def outputs(self):
         raise NotImplementedError()
+
+
+class WorkflowStuck(ValueError):
+    pass
 
 
 class SerialRuntimeRunner(AbstractWorkflowRunner):
@@ -66,8 +79,29 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
         self._finished = False
         assert engine is None, "This runner doesn't use an engine"
 
+    def preprocess(self):
+        task = self.tasks[self.workflow._preprocessor.name]
+        self.do_task(task)
+        return task
+
+    def do_task(self, task):
+        """ Execute a task (along with any dependencies).
+        """
+        if not task.ready:  # execute any tasks this one depends on
+            for inputdata in task.spec.inputfields.itervalues():
+                if not isinstance(inputdata, datasources._TaskOutput):
+                    continue
+                subtask = self.tasks[inputdata.task.name]
+                if not subtask.finished:
+                    self.do_task(subtask)
+
+            self._prepare_inputs(task)
+
+        if not task.finished:
+            self.run_task(task.spec.name, task)
+
     def run(self):
-        print 'Starting workflow "%s"' % (self.workflow.name)
+        print 'Starting workflow "%s"' % self.workflow.name
 
         while True:
             stuck = True
@@ -90,7 +124,7 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
                 break
 
             if stuck:
-                raise ValueError('No tasks are ready to run ...')
+                raise WorkflowStuck('No tasks are ready to run ...')
 
         self._finished = True
         self._outputs = {fieldname: source.getvalue(self)

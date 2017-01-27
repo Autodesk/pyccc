@@ -30,6 +30,9 @@ class AbstractTaskRunner(object):
         self.parentrunner = parentrunner
         self._expectedfields = set(self.spec.inputfields)
 
+    def run(self):
+        raise NotImplementedError()
+
     @property
     def ready(self):
         return len(self._expectedfields) == 0
