@@ -11,8 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import pickle
+import sys
+
 import pyccc
 
 if pyccc.ui.widgets_enabled:
@@ -42,12 +43,26 @@ class AbstractTaskRunner(object):
         raise NotImplementedError()
 
     @property
-    def outputs(self):
-        raise NotImplementedError()
-
-    @property
     def inputs(self):
         raise NotImplementedError()
+
+
+class MockUITask(AbstractTaskRunner):
+    """ For a UI task that has completed.
+    """
+
+    finished = True
+    ready = True
+
+    def __init__(self, spec, outputs):
+        self.spec = spec
+        self._outputs = outputs
+
+    def getoutput(self, field):
+        return self._outputs[field]
+
+    def getpickle(self, field):
+        return pickle.dumps(self._outputs[field])
 
 
 class TaskRuntimeRunner(AbstractTaskRunner):
@@ -79,13 +94,6 @@ class TaskRuntimeRunner(AbstractTaskRunner):
             return self._inputs
         else:
             raise ValueError('Inputs not connected')
-
-    @property
-    def outputs(self):
-        if self.finished:
-            return self._result
-        else:
-            return None
 
     @property
     def finished(self):
@@ -131,17 +139,14 @@ class TaskCCCRunner(AbstractTaskRunner):
             dobj.update()
         else:
             print 'job id %s, image %s' % (self.job.jobid, self.job.image),
+            sys.stdout.flush()
             self.job.wait()
 
         self._getoutputs()
 
     def _getoutputs(self):
-        try:
-            fields = self.job.get_output('outputfields.txt').read().splitlines()
-        except KeyError:
-            print 'FAILED'
-            print self.job.get_output('traceback.txt').read()
-            raise
+        self.job.reraise_remote_exception()
+        fields = self.job.get_output('outputfields.txt').read().splitlines()
 
         for f in fields:
             self._outputpickles[f] = self.job.get_output('outputs/%s.pkl' % f)
@@ -153,10 +158,6 @@ class TaskCCCRunner(AbstractTaskRunner):
     @property
     def inputs(self):
         return self._inputpickles
-
-    @property
-    def outputs(self):
-        return self._outputpickles
 
     def getpickle(self, field):
         return self._outputpickles[field]

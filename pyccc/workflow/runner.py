@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import sys
+
 from . import datasources
 from . import taskrunner
 
@@ -56,8 +58,7 @@ class AbstractWorkflowRunner(object):
     def finished(self):
         raise NotImplementedError()
 
-    @property
-    def outputs(self):
+    def get_output(self, field):
         raise NotImplementedError()
 
 
@@ -134,16 +135,19 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
 
     def run_task(self, name, task):
         print 'Running task %s ...'%name,
+        sys.stdout.flush()
+
         task.run()
+
         print 'done'
+        sys.stdout.flush()
 
     @property
     def finished(self):
         return self._finished
 
-    @property
-    def outputs(self):
-        return self._outputs
+    def getoutput(self, field):
+        return self._outputs[field]
 
 
 class SerialCCCRunner(SerialRuntimeRunner):
@@ -155,7 +159,4 @@ class SerialCCCRunner(SerialRuntimeRunner):
         self.tasks = {name: self.TaskRunner(task, engine, self)
                       for name, task in self.workflow.tasks.iteritems()}
 
-    def run_task(self, name, task):
-        print 'Running task %s ...' % name,
-        task.run()
-        print 'done'
+
