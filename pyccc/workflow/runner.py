@@ -154,6 +154,7 @@ class SerialCCCRunner(SerialRuntimeRunner):
     TaskRunner = taskrunner.TaskCCCRunner
 
     def __init__(self, workflow, engine, **inputs):
+        self.engine = engine
         self.workflow = workflow
         self.inputs = inputs
         self.tasks = {name: self.TaskRunner(task, engine, self)

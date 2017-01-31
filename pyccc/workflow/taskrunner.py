@@ -46,6 +46,10 @@ class AbstractTaskRunner(object):
     def inputs(self):
         raise NotImplementedError()
 
+    @property
+    def outputfields(self):
+        raise NotImplementedError()
+
 
 class MockUITask(AbstractTaskRunner):
     """ For a UI task that has completed.
@@ -63,6 +67,10 @@ class MockUITask(AbstractTaskRunner):
 
     def getpickle(self, field):
         return pickle.dumps(self._outputs[field])
+
+    @property
+    def outputfields(self):
+        return self._outputs.keys()
 
 
 class TaskRuntimeRunner(AbstractTaskRunner):
@@ -101,6 +109,10 @@ class TaskRuntimeRunner(AbstractTaskRunner):
 
     def getoutput(self, field):
         return self._result[field]
+
+    @property
+    def outputfields(self):
+        return self._result.keys()
 
 
 class TaskCCCRunner(AbstractTaskRunner):
@@ -164,3 +176,7 @@ class TaskCCCRunner(AbstractTaskRunner):
 
     def getoutput(self, field):
         return pickle.loads(self.getpickle(field).read())
+
+    @property
+    def outputfields(self):
+        return self._outputpickles.keys()

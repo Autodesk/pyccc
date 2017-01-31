@@ -33,14 +33,25 @@ class Docker(EngineBase):
             workingdir (str): default working directory to create in the containers
         """
 
+        self.client = self.connect_to_docker(client)
+        self.default_wdir = workingdir
+        self.hostname = self.client.base_url
+
+    def connect_to_docker(self, client=None):
         if isinstance(client, basestring):
             client = du.get_docker_apiclient(client)
         if client is None:
             client = du.get_docker_apiclient(**docker.utils.kwargs_from_env())
+        return client
 
-        self.client = client
-        self.default_wdir = workingdir
-        self.hostname = self.client.base_url
+    def __getstate__(self):
+        """
+        We don't pickle the docker client, for now
+        """
+        newdict = self.__dict__.copy()
+        if 'client' in newdict:
+            newdict['client'] = None
+        return newdict
 
     def test_connection(self):
         version = self.client.version()
@@ -109,13 +120,7 @@ class Docker(EngineBase):
         return (self.client.logs(job.container, stdout=True, stderr=False),
                 self.client.logs(job.container, stdout=False, stderr=True))
 
-    def __getstate__(self):
-        """
-        We don't pickle the docker client, for now
-        """
-        newdict = self.__dict__.copy()
-        newdict.pop('client', None)
-        return newdict
+
 
 
 class DockerMachine(Docker):
