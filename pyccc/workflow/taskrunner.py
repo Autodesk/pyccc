@@ -13,6 +13,7 @@
 # limitations under the License.
 import pickle
 import sys
+import yaml
 
 import pyccc
 
@@ -158,7 +159,7 @@ class TaskCCCRunner(AbstractTaskRunner):
                 print '  command: %s' % self.job.command
                 print '  input_fields:'
                 for field, source in self.spec.inputfields.iteritems():
-                    print '    %s: %s' % (field, source)
+                    print '    "%s": <%s>' % (field, source)
 
                 sys.stdout.flush()
 
@@ -172,10 +173,6 @@ class TaskCCCRunner(AbstractTaskRunner):
         except Exception as e:
             print '--------- EXCEPTION DURING EXECUTION ----------------'
             print 'Dumping job information\n'
-
-            if isinstance(self.engine, pyccc.CloudComputeCannon):
-                print 'Results.json: '
-                print self.job._result_json
 
             print '------------ STDOUT -----------------'
             try:
@@ -191,7 +188,12 @@ class TaskCCCRunner(AbstractTaskRunner):
 
             print '\n------------ EXCEPTION TRACEBACK -----------------'
 
-            raise
+            raise e
+
+        finally:
+            if getattr(self.job, '_result_json', None):
+                print '    ----- results.json -----'
+                print yaml.safe_dump(self.job._result_json)
 
     def _getoutputs(self):
         self.job.reraise_remote_exception()
