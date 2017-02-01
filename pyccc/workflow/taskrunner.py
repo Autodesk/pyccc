@@ -138,15 +138,15 @@ class TaskCCCRunner(AbstractTaskRunner):
         self._inputpickles['inputs/%s.pkl' % fieldname] = source.getpickle(self.parentrunner)
 
     def run(self):
-        print '\nRunning job: %s' % self.spec.name
+        print '\nRunning task "%s" on %s' % (self.spec.name, self.engine)
 
+        funccall = pyccc.PythonCall(self.spec.func)
+        funccall.separate_fields = self._inputfields
+        self.job = self.engine.launch(command=funccall,
+                                      image=self.spec.image,
+                                      inputs=self._inputpickles,
+                                      name=self.spec.name)
         try:
-            funccall = pyccc.PythonCall(self.spec.func)
-            funccall.separate_fields = self._inputfields
-            self.job = self.engine.launch(command=funccall,
-                                          image=self.spec.image,
-                                          inputs=self._inputpickles,
-                                          name=self.spec.name)
             if display:
                 dobj = self.job.get_display_object()
                 display(dobj)
