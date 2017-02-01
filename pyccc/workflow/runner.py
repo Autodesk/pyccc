@@ -61,6 +61,10 @@ class AbstractWorkflowRunner(object):
     def get_output(self, field):
         raise NotImplementedError()
 
+    @property
+    def outputfields(self):
+        return self.workflow.outputfields.keys()
+
 
 class WorkflowStuck(ValueError):
     pass
@@ -79,6 +83,7 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
         self._outputs = None
         self._finished = False
         assert engine is None, "This runner doesn't use an engine"
+        self.engine = None
 
     def preprocess(self):
         task = self.tasks[self.workflow._preprocessor.name]
@@ -134,13 +139,7 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
         return self._outputs
 
     def run_task(self, name, task):
-        print 'Running task %s ...'%name,
-        sys.stdout.flush()
-
         task.run()
-
-        print 'done'
-        sys.stdout.flush()
 
     @property
     def finished(self):

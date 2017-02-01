@@ -45,6 +45,9 @@ class _ConstantData(_SourceData):
     def getvalue(self, runner):
         return self.value
 
+    def __str__(self):
+        return 'Workflow constant'
+
 
 class _ExternalInput(_SourceData):
     """ Placeholder for external (i.e., user) input
@@ -62,6 +65,9 @@ class _ExternalInput(_SourceData):
 
     def getvalue(self, runner):
         return runner.inputs[self.key]
+
+    def __str__(self):
+        return 'User input'
 
 
 class _TaskOutput(_SourceData):
@@ -93,6 +99,8 @@ class _TaskOutput(_SourceData):
         else:
             return taskrunner.getpickle(self.key)
 
+    def __str__(self):
+        return 'Output field "%s" from task "%s"' % (self.key, self.task.name)
 
 
 

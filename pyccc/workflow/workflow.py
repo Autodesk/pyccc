@@ -122,6 +122,7 @@ class Workflow(object):
             >>> workflow.set_outputs(out1=task['task_output'],
             ...                      out2=othertask['other_output'])
         """
+
         for fieldname, source in outputs.iteritems():
             self.outputfields[fieldname] = source
 

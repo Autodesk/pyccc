@@ -138,23 +138,60 @@ class TaskCCCRunner(AbstractTaskRunner):
         self._inputpickles['inputs/%s.pkl' % fieldname] = source.getpickle(self.parentrunner)
 
     def run(self):
-        funccall = pyccc.PythonCall(self.spec.func)
-        funccall.separate_fields = self._inputfields
-        self.job = self.engine.launch(command=funccall,
-                                      image=self.spec.image,
-                                      inputs=self._inputpickles,
-                                      name=self.spec.name)
-        if display:
-            dobj = self.job.get_display_object()
-            display(dobj)
-            self.job.wait()
-            dobj.update()
-        else:
-            print 'job id %s, image %s' % (self.job.jobid, self.job.image),
-            sys.stdout.flush()
-            self.job.wait()
+        print '\nRunning job: %s' % self.spec.name
 
-        self._getoutputs()
+        try:
+            funccall = pyccc.PythonCall(self.spec.func)
+            funccall.separate_fields = self._inputfields
+            self.job = self.engine.launch(command=funccall,
+                                          image=self.spec.image,
+                                          inputs=self._inputpickles,
+                                          name=self.spec.name)
+            if display:
+                dobj = self.job.get_display_object()
+                display(dobj)
+                self.job.wait()
+                dobj.update()
+            else:
+                print '  jobid: %s' % self.job.jobid
+                print '  image: %s' % self.job.image
+                print '  command: %s' % self.job.command
+                print '  input_fields:'
+                for field, source in self.spec.inputfields.iteritems():
+                    print '    %s: %s' % (field, source)
+
+                sys.stdout.flush()
+
+                self.job.wait()
+
+                print 'Done with task "%s"' % self.spec.name
+
+            self._getoutputs()
+            print 'Output fields:', ', '.join(self.outputfields)
+
+        except Exception as e:
+            print '--------- EXCEPTION DURING EXECUTION ----------------'
+            print 'Dumping job information\n'
+
+            if isinstance(self.engine, pyccc.CloudComputeCannon):
+                print 'Results.json: '
+                print self.job._result_json
+
+            print '------------ STDOUT -----------------'
+            try:
+                print self.job.stdout
+            except Exception as printe:
+                print '<ERROR accessing stdout: %s>' % printe
+
+            print '\n------------ STDERR -----------------'
+            try:
+                print self.job.stderr
+            except Exception as printe:
+                print '<ERROR accessing stderr: %s>' % printe
+
+            print '\n------------ EXCEPTION TRACEBACK -----------------'
+
+            raise
 
     def _getoutputs(self):
         self.job.reraise_remote_exception()
