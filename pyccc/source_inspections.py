@@ -20,34 +20,79 @@ import inspect
 import linecache
 import re
 import string
-from collections import namedtuple
 import future_builtins as builtins
 
 __author__ = 'aaronvirshup'
 
 
+def get_global_vars(func):
+    """ Store any methods or variables bound from the function's closure
+
+    Args:
+        func (function): function to inspect
+
+    Returns:
+        dict: mapping of variable names to globally bound VARIABLES
+        dict: mapping of variable names to globally bound MODULES
+    """
+    closure = getclosurevars(func)
+    if closure['nonlocal']:
+        raise TypeError("Can't launch a job with closure variables: %s" %
+                        closure['nonlocals'].keys())
+    globalvars = dict(modules={},
+                      functions={},
+                      vars={})
+    for name, value in closure['global'].iteritems():
+        if inspect.ismodule(value):  # TODO: deal FUNCTIONS from closure
+            globalvars['modules'][name] = value.__name__
+        elif inspect.isfunction(value):
+            globalvars['functions'][name] = value
+        else:
+            globalvars['vars'][name] = value
+
+    return globalvars
+
+
 def getsource(classorfunc):
+    """ Return the source code for a class or function.
+
+    Notes:
+        Returned source will not include any decorators for the object.
+        This will only return the explicit declaration of the object, not any dependencies
+
+    Args:
+        classorfunc (type or function): the object to get the source code for
+
+    Returns:
+        str: source code (without any decorators)
+    """
     try:
         source = inspect.getsource(classorfunc)
     except TypeError:  # raised if defined in __main__ - use fallback to get the source instead
         source = getsourcefallback(classorfunc)
 
     declaration = []
-    sourcefile = []
-    found_decl = False
-    # Strip function decorators, separate declaration from code
-    for iline, line in enumerate(source.split('\n')):
-        if iline == 0 and line.strip().startswith('@'): continue
-        if found_decl:
-            sourcefile.append(line)
-        else:
+
+    sourcelines = iter(source.splitlines())
+
+    # First, get the declaration
+    found_keyword = False
+    for line in sourcelines:
+        words = line.split()
+        if not words:
+            continue
+        if words[0] in ('def', 'class'):
+            found_keyword = True
+        if found_keyword:
             cind = line.find(':')
             if cind > 0:
-                found_decl = True
                 declaration.append(line[:cind + 1])
                 after_decl = line[cind + 1:].strip()
+                break
             else:
                 declaration.append(line)
+
+    bodylines = list(sourcelines)  # the rest of the lines are body
 
     # If it's a class, make sure we import its superclasses
     # Unfortunately, we need to modify the code to make sure the
@@ -75,7 +120,7 @@ def getsource(classorfunc):
     else:
         declaration[-1] += after_decl
 
-    return '\n'.join(declaration + sourcefile)
+    return '\n'.join(declaration + bodylines)
 
 
 def getsourcefallback(cls):
@@ -91,7 +136,7 @@ def getsourcefallback(cls):
             break
     else:
         raise AttributeError(
-            "This class doesn't have an instance method, create one to cloudify it")
+            "Cannot get this class' source; it does not appear to have any methods")
 
     ### This part is derived from inspect.findsource ###
     module = inspect.getmodule(cls)
@@ -128,10 +173,7 @@ def getsourcefallback(cls):
     glines = inspect.getblock(flines[flnum:])
 
     ### And this is what inspect.getsource does ###
-    return string.join(glines,"")
-
-
-ClosureVars = namedtuple('ClosureVars', 'nonlocals globals builtins unbound')
+    return string.join(glines, "")
 
 
 def getclosurevars(func):
@@ -182,5 +224,7 @@ def getclosurevars(func):
             except KeyError:
                 unbound_names.add(name)
 
-    return ClosureVars(nonlocal_vars, global_vars,
-                       builtin_vars, unbound_names)
+    return {'nonlocal': nonlocal_vars,
+            'global': global_vars,
+            'builtin': builtin_vars,
+            'unbound': unbound_names}
