@@ -145,13 +145,23 @@ def docker_machine_env(machine_name):
 
 
 def docker_machine_client(machine_name='default'):
-    import docker, docker.utils
+    import docker.utils
 
     env = docker_machine_env(machine_name)
     os.environ.update(env)
-    client = docker.Client(**docker.utils.kwargs_from_env(assert_hostname=False))
+    client = get_docker_apiclient(**docker.utils.kwargs_from_env(assert_hostname=False))
 
     return client
+
+
+def get_docker_apiclient(*args, **kwargs):
+    import docker
+
+    if hasattr(docker, 'APIClient'):
+        ClientClass = docker.APIClient
+    else:
+        ClientClass = docker.Client
+    return ClientClass(*args, **kwargs)
 
 
 def kwargs_from_client(client, assert_hostname=False):

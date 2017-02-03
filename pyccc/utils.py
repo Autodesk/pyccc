@@ -15,7 +15,7 @@
 My standard utilities. Intended to be included in all projects
 Obviously everything included here needs to be in the standard library
 """
-import os
+import sys
 from cStringIO import StringIO
 from functools import wraps
 from uuid import uuid4
@@ -39,7 +39,6 @@ def gist_diff():
     return stdout
 
 
-
 def wget(url):
     """
     Download the page into a string
@@ -50,11 +49,34 @@ def wget(url):
     filestring = request.read()
     return filestring
 
-def if_not_none(item,default):
+
+def if_not_none(item, default):
     if item is None:
         return default
     else:
         return item
+
+
+def can_use_widgets():
+    """ Expanded from from http://stackoverflow.com/a/34092072/1958900
+    """
+    if 'IPython' not in sys.modules:
+        # IPython hasn't been imported, definitely not
+        return False
+    from IPython import get_ipython
+
+    # check for `kernel` attribute on the IPython instance
+    if getattr(get_ipython(), 'kernel', None) is None:
+        return False
+
+    try:
+        import ipywidgets as ipy
+        import traitlets
+    except ImportError:
+        return False
+
+    return True
+
 
 class PipedFile(object):
     """

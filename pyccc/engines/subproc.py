@@ -37,7 +37,6 @@ class Subprocess(EngineBase):
         if job.stdout.strip() != 'check12':
             raise
 
-
     def get_engine_description(self, job):
         """
         Return a text description for the UI
@@ -53,15 +52,15 @@ class Subprocess(EngineBase):
         self._check_job(job)
         job.workingdir = utils.make_local_temp_dir()
         if job.inputs:
-            for filename, file in job.inputs.iteritems():
-                file.put('%s/%s' % (job.workingdir, filename))
+            for filename, f in job.inputs.iteritems():
+                f.put(os.path.join(job.workingdir, filename))
 
         job.subproc = subprocess.Popen(job.command,
                                        shell=True,
                                        cwd=job.workingdir,
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE)
-        job.jobid = job.subproc
+        job.jobid = 'Subprocess %s' % job.subproc.pid
         job._started = True
         return job.subproc.pid
 
