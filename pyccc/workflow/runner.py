@@ -115,7 +115,7 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
             self._prepare_inputs(task)
 
         if not task.finished:
-            self.run_task(task.spec.name, task)
+            task.run()
 
     def run(self):
         print 'Starting workflow "%s"' % self.workflow.name
