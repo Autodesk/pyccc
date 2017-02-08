@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import time
+import urllib2
 
 import pyccc
 from pyccc import files, status
@@ -148,9 +149,16 @@ class CloudComputeCannon(EngineBase):
 
     def _get_final_stds(self, job):
         result_json = self._get_result_json(job)
-        stdout = self._download(result_json['stdout']).read()
-        stderr = self._download(result_json['stderr']).read()
-        return stdout, stderr
+        stds = []
+        for fname in ('stdout', 'stderr'):
+            f = self._download(result_json[fname])
+            try:
+                content = f.read()
+            except urllib2.HTTPError:
+                content = ''
+            stds.append(content)
+
+        return stds
 
     def _list_output_files(self, job):
         results = self._get_result_json(job)

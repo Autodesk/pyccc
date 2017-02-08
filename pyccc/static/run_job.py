@@ -20,6 +20,9 @@ import sys
 import os
 import cPickle as cp
 import traceback as tb
+import time
+
+start_time = time.time()
 
 import source  # the dynamically created source file
 
@@ -32,9 +35,7 @@ def main():
     os.environ['IS_PYCCC_JOB'] = '1'
     try:
         funcpkg, func = load_job()
-
         result = funcpkg.run(func)
-
         serialize_output(result,
                          separate_fields=funcpkg._separate_io_fields is not None)
 
@@ -45,6 +46,8 @@ def main():
     # Catch all exceptions and return them to the client
     except Exception as exc:
         capture_exceptions(exc)
+
+    print 'Python execution walltime:', time.time() - start_time
 
 
 def load_job():

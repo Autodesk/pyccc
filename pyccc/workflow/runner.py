@@ -75,20 +75,31 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
     Runs a workflow, serially, in this python interpreter. Not distributed in the slightest.
     """
     TaskRunner = taskrunner.TaskRuntimeRunner
+    InteractiveTaskRunner = taskrunner.TaskRuntimeRunner
 
     def __init__(self, workflow, engine=None, **inputs):
         super(SerialRuntimeRunner, self).__init__(workflow, **inputs)
-        self.tasks = {name: self.TaskRunner(task, self)
+        self.engine = engine
+
+        self.tasks = {name: self._get_task_runner(task)
                       for name, task in self.workflow.tasks.iteritems()}
         self._outputs = None
         self._finished = False
-        assert engine is None, "This runner doesn't use an engine"
-        self.engine = None
+        self.test_engine()
+
+    def test_engine(self):
+        assert self.engine is None, "This runner doesn't use an engine"
 
     def preprocess(self):
         task = self.tasks[self.workflow._preprocessor.name]
         self.do_task(task)
         return task
+
+    def _get_task_runner(self, task):
+        if task.interactive:
+            return self.InteractiveTaskRunner(task, self)
+        else:
+            return self.TaskRunner(task, self)
 
     def do_task(self, task):
         """ Execute a task (along with any dependencies).
@@ -124,7 +135,7 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
 
                 if task.ready:
                     stuck = False
-                    self.run_task(name, task)
+                    task.run()
 
             if finished:
                 break
@@ -138,9 +149,6 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
 
         return self._outputs
 
-    def run_task(self, name, task):
-        task.run()
-
     @property
     def finished(self):
         return self._finished
@@ -152,11 +160,8 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
 class SerialCCCRunner(SerialRuntimeRunner):
     TaskRunner = taskrunner.TaskCCCRunner
 
-    def __init__(self, workflow, engine, **inputs):
-        self.engine = engine
-        self.workflow = workflow
-        self.inputs = inputs
-        self.tasks = {name: self.TaskRunner(task, engine, self)
-                      for name, task in self.workflow.tasks.iteritems()}
+    def test_engine(self):
+        self.engine.test_connection()
+
 
 

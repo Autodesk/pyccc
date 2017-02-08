@@ -13,6 +13,8 @@
 # limitations under the License.
 import pickle
 import sys
+
+import time
 import yaml
 
 import pyccc
@@ -93,9 +95,18 @@ class TaskRuntimeRunner(AbstractTaskRunner):
         self._inputs[fieldname] = source.getvalue(self.parentrunner)
 
     def run(self):
+        start_time = time.time()
+        print '\nRunning task "%s" in current runtime ...' % self.spec.name
+        print '  input_fields:'
+        for field, source in self.spec.inputfields.iteritems():
+            print '    "%s": <%s>'%(field, source)
+
         self._result = self.spec(**self._inputs)
         if self._result is None:
             self._result = {}
+
+        print 'Done with task "%s"'%self.spec.name
+        print 'Total walltime for "%s": %.2f s'%(self.spec.name, time.time()-start_time)
 
     @property
     def inputs(self):
@@ -115,15 +126,18 @@ class TaskRuntimeRunner(AbstractTaskRunner):
     def outputfields(self):
         return self._result.keys()
 
+    def getpickle(self, field):
+        return pickle.dumps(self._result[field])
+
 
 class TaskCCCRunner(AbstractTaskRunner):
     """
     Run a task via pyCCC
     """
-    def __init__(self, task, engine, parentrunner):
+    def __init__(self, task, parentrunner):
         super(TaskCCCRunner, self).__init__(task, parentrunner)
         self.job = None
-        self.engine = engine
+        self.engine = parentrunner.engine
         self._inputpickles = {}
         self._outputpickles = {}
         self._inputfields = []
@@ -140,7 +154,7 @@ class TaskCCCRunner(AbstractTaskRunner):
 
     def run(self):
         print '\nRunning task "%s" on %s' % (self.spec.name, self.engine)
-
+        start_time = time.time()
         funccall = pyccc.PythonCall(self.spec.func)
         funccall.separate_fields = self._inputfields
         self.job = self.engine.launch(command=funccall,
@@ -162,10 +176,12 @@ class TaskCCCRunner(AbstractTaskRunner):
                     print '    "%s": <%s>' % (field, source)
 
                 sys.stdout.flush()
-
                 self.job.wait()
-
                 print 'Done with task "%s"' % self.spec.name
+                print 'Total walltime for "%s": %.2f s' % (self.spec.name, time.time() - start_time)
+                _l = self.job.stdout.splitlines()
+                if len(_l) > 0 and 'Python execution walltime:' in _l[-1]:
+                    print _l[-1]
 
             self._getoutputs()
             print 'Output fields:', ', '.join(self.outputfields)
@@ -188,7 +204,7 @@ class TaskCCCRunner(AbstractTaskRunner):
 
             print '\n------------ EXCEPTION TRACEBACK -----------------'
 
-            raise e
+            raise
 
         finally:
             if getattr(self.job, '_result_json', None):

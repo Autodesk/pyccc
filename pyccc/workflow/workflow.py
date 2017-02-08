@@ -193,6 +193,8 @@ class Task(object):
         self.inputfields = {}
         self.set_input_sources(**connections)
 
+        self.interactive = getattr(func, '__interactive__', False)
+
         #self.__call__.__doc__ += self.func.__doc__  # this doesn't work
 
     @property
