@@ -65,13 +65,19 @@ class Workflow(object):
 
         return task
 
-    def task(self, func=None, image=None, taskname=None, preprocess=False, **connections):
+    def task(self, func=None,
+             __image__=None,
+             __taskname__=None,
+             __preprocess__=False,
+             __interactive__=False,
+             **connections):
         """ Function decorator for adding python functions to this workflow as tasks
 
         Args:
-            image (str): docker image to run this task in (default: self.default_image)
-            taskname (str): name of this task (default: function.__name__)
-            preprocess (bool): flag this task as a preprocessing step
+            __image__ (str): docker image to run this task in (default: self.default_image)
+            __taskname__ (str): name of this task (default: function.__name__)
+            __preprocess__ (bool): flag this task as a preprocessing step
+            __interactive__ (bool): run this task directly from the workflow manager?
             **connections (dict): mapping from function arguments to source data
 
         Examples:
@@ -84,8 +90,8 @@ class Workflow(object):
             >>>     return {'out1':in1+in2,
             ...             'out2':in1-in2}
         """
-        if image is None:
-            image = self.default_image
+        if __image__ is None:
+            __image__ = self.default_image
 
         def wraptask(f):
             """ Wrapper for the :meth:`Workflow.task` decorator.
@@ -95,16 +101,17 @@ class Workflow(object):
             """
             if not callable(f):
                 raise ValueError('"%s" is not callable and cannot be used as a task' % f)
-            n = Task(f, self, image, name=taskname, **connections)
-            if n.name in self.tasks:
-                raise ValueError('A task named %s already exists in this workflow' % n.name)
+            newtask = Task(f, self, __image__, name=__taskname__, **connections)
+            if newtask.name in self.tasks:
+                raise ValueError('A task named %s already exists in this workflow' % newtask.name)
 
-            self.tasks[n.name] = n
+            self.tasks[newtask.name] = newtask
+            if __preprocess__:
+                self.preprocessing.append(newtask)
 
-            if preprocess:
-                self.preprocessing.append(n)
+            newtask.interactive = __interactive__ or getattr(f, '__interactive__', False)
 
-            return n
+            return newtask
 
         if func is not None:
             return wraptask(func)

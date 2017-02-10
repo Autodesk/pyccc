@@ -81,8 +81,10 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
         super(SerialRuntimeRunner, self).__init__(workflow, **inputs)
         self.engine = engine
 
+        print '\nTasks in workflow "%s":' % self.workflow.name
         self.tasks = {name: self._get_task_runner(task)
                       for name, task in self.workflow.tasks.iteritems()}
+        print
         self._outputs = None
         self._finished = False
         self.test_engine()
@@ -96,6 +98,7 @@ class SerialRuntimeRunner(AbstractWorkflowRunner):
         return task
 
     def _get_task_runner(self, task):
+        print '- %s: %s' % (task.name, "Interactive" if task.interactive else "Backend")
         if task.interactive:
             return self.InteractiveTaskRunner(task, self)
         else:
