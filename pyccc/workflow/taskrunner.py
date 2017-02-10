@@ -165,47 +165,12 @@ class TaskCCCRunner(AbstractTaskRunner):
                                       inputs=self._inputpickles,
                                       name=self.spec.name)
         try:
-            if display:
-                dobj = self.job.get_display_object()
-                display(dobj)
-                self.job.wait()
-                dobj.update()
-            else:
-                print '  jobid: %s' % self.job.jobid
-                print '  image: %s' % self.job.image
-                print '  command: %s' % self.job.command
-                print '  input_fields:'
-                for field, source in self.spec.inputfields.iteritems():
-                    print '    "%s": <%s>' % (field, source)
-
-                sys.stdout.flush()
-                self.job.wait()
-                print 'Done with task "%s"' % self.spec.name
-                print 'Total walltime for "%s": %.2f s' % (self.spec.name, time.time() - start_time)
-                _l = self.job.stdout.splitlines()
-                if len(_l) > 0 and 'Python execution walltime:' in _l[-1]:
-                    print _l[-1]
-
+            self._wait_and_display_status(start_time)
             self._getoutputs()
             print 'Output fields:', ', '.join(self.outputfields)
 
         except Exception as e:
-            print '--------- EXCEPTION DURING EXECUTION ----------------'
-            traceback.print_exc()
-            print 'Dumping job information\n'
-
-            print '------------ STDOUT -----------------'
-            try:
-                print self.job.stdout
-            except Exception as printe:
-                print '<ERROR accessing stdout: %s>' % printe
-
-            print '\n------------ STDERR -----------------'
-            try:
-                print self.job.stderr
-            except Exception as printe:
-                print '<ERROR accessing stderr: %s>' % printe
-
+            self._dump_exception()
             raise e
 
         finally:
@@ -214,6 +179,55 @@ class TaskCCCRunner(AbstractTaskRunner):
                 print yaml.safe_dump(self.job._result_json)
             else:
                 print 'No stored result.json output.'
+
+    def _dump_exception(self):
+        print '--------- EXCEPTION DURING EXECUTION ----------------'
+        traceback.print_exc()
+        print
+
+        try:
+            stdout = self.job.stdout
+        except Exception as printe:
+            print '<ERROR accessing stdout: %s - %s>' % (printe.__class__.__name__, printe)
+        else:
+            print '\n------------ STDOUT -----------------'
+            print stdout
+            print
+
+        try:
+            stderr = self.job.stderr
+        except Exception as printe:
+            print '<ERROR accessing stderr: %s - %s>' % (printe.__class__.__name__, printe)
+        else:
+            print '------------ STDERR -----------------'
+            print stderr
+
+        if isinstance(self.job.engine, pyccc.CloudComputeCannon):
+            print '\n  LAST CCC SERVER REQUEST:'
+            pyccc.utils.dump_response_error(self.job.engine.proxy._last_response)
+            print
+
+    def _wait_and_display_status(self, start_time):
+        if display:
+            dobj = self.job.get_display_object()
+            display(dobj)
+            self.job.wait()
+            dobj.update()
+        else:
+            print '  jobid: %s' % self.job.jobid
+            print '  image: %s' % self.job.image
+            print '  command: %s' % self.job.command
+            print '  input_fields:'
+            for field, source in self.spec.inputfields.iteritems():
+                print '    "%s": <%s>' % (field, source)
+
+            sys.stdout.flush()
+            self.job.wait(verbose=True)
+            print 'Done with task "%s"' % self.spec.name
+            print 'Total walltime for "%s": %.2f s' % (self.spec.name, time.time()-start_time)
+            _l = self.job.stdout.splitlines()
+            if len(_l) > 0 and 'Python execution walltime:' in _l[-1]:
+                print _l[-1]
 
     def _getoutputs(self):
         self.job.reraise_remote_exception()

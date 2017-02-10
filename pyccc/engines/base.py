@@ -65,7 +65,7 @@ class EngineBase(object):
     def _check_job(self, job):
         job.engine = self
 
-    def wait(self, job):
+    def wait(self, job, verbose=False):
         """
         block until job completes
         """

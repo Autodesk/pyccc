@@ -156,10 +156,10 @@ class Job(object):
         if wait: self.wait()
 
 
-    def wait(self):
+    def wait(self, verbose=False):
         """Wait for job to finish"""
         if not self._finished or self._stopped:
-            self.engine.wait(self)
+            self.engine.wait(self, verbose=verbose)
             self._finish_job()
 
     @property

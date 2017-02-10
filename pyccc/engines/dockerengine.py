@@ -78,7 +78,8 @@ class Docker(EngineBase):
         job.containerid = job.container['Id']
         job.jobid = job.containerid
 
-    def wait(self, job):
+    def wait(self, job, verbose=False):
+        # verbose currently ignored ...
         job._update_displays()
         self.client.wait(job.container)
         job._update_displays()

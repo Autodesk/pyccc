@@ -67,7 +67,8 @@ class Subprocess(EngineBase):
     def kill(self, job):
         job.subproc.terminate()
 
-    def wait(self, job):
+    def wait(self, job, verbose=False):
+        # verbose currently ignored
         job._update_displays()
         job.subproc.wait()
         job._update_displays()

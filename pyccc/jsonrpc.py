@@ -107,6 +107,7 @@ class JsonRpcProxy(object):
                 response = requests.post(host,
                                          headers=headers,
                                          data=json.dumps(jsonRpcRequest))
+                self._last_response = response
 
             try:
                 responseJson = response.json()

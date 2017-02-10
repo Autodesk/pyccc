@@ -322,3 +322,34 @@ class DocInherit(object):
 
 #idiomatic decorator name
 doc_inherit = DocInherit
+
+
+def dump_response_error(response):
+    """
+    FROM http://stackoverflow.com/a/35392830/1958900
+    """
+    from requests_toolbelt.utils import dump
+
+    print '\n-----------REQUEST START-----------'
+    print _pretty_print_request(response.request)
+    data = dump.dump_all(response)
+
+    print '\n-----------RESPONSE START-----------'
+    print data.decode('utf-8')
+
+
+def _pretty_print_request(req):
+    """
+    FROM http://stackoverflow.com/a/23816211/1958900
+
+    At this point it is completely built and ready
+    to be fired; it is "prepared".
+
+    However pay attention at the formatting used in
+    this function because it is programmed to be pretty
+    printed and may differ from the actual request.
+    """
+    return '{}\n{}\n\n{}'.format(
+        req.method + ' ' + req.url,
+        '\n'.join('{}: {}'.format(k, v) for k, v in req.headers.items()),
+        req.body)

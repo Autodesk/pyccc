@@ -14,6 +14,8 @@
 import time
 import urllib2
 
+import sys
+
 import pyccc
 from pyccc import files, status
 from . import EngineBase
@@ -101,7 +103,6 @@ class CloudComputeCannon(EngineBase):
             cmdstring.append(' '.join(job.command))
 
         cmdstring.append('cd $CCC_WORKDIR && cp -r * /outputs 2>/dev/null')
-
         returnval = self.proxy.submitjob(image=job.image,
                                          command=['sh', '-c', ' && '.join(cmdstring)],
                                          inputs=job.inputs,
@@ -121,22 +122,36 @@ class CloudComputeCannon(EngineBase):
         stat = self.STATUSES[response[job.jobid]]
         return stat
 
-    def wait(self, job):
+    def wait(self, job, verbose=False):
         # TODO: don't poll!
         polltime = 1  # start out polling every second
         wait_time = 0
         run_time = 0
+        laststatus = None
+        if verbose: print 'Job status: ',
         while job.status not in status.DONE_STATES:
             job._update_displays()
             time.sleep(polltime)
             wait_time += polltime
-            if job.status == status.RUNNING:
+            newstatus = job.status
+            if newstatus == status.RUNNING:
                 run_time += polltime
             if run_time > job.runtime:
-                raise pyccc.TimeoutError(job, 'Job timed out - status "%s"' % job.status)
-            if wait_time > 1000: polltime = 20
-            elif wait_time > 100: polltime = 10
-            elif wait_time > 10: polltime = 2.5
+                raise pyccc.TimeoutError(job, 'Job timed out - status "%s"' % newstatus)
+
+            if verbose:
+                if newstatus != laststatus:
+                    sys.stdout.write(newstatus)
+                    laststatus = newstatus
+                else:
+                    sys.stdout.write('.')
+                sys.stdout.flush()
+
+            if wait_time > 1000: polltime = 20.0
+            elif wait_time > 100: polltime = 10.0
+            elif wait_time > 10: polltime = 2.0
+        if verbose:
+            print
 
         job._update_displays()
 
