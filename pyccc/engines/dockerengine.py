@@ -79,7 +79,9 @@ class Docker(EngineBase):
         job.jobid = job.containerid
 
     def wait(self, job):
+        job._update_displays()
         self.client.wait(job.container)
+        job._update_displays()
 
     def kill(self, job):
         self.client.kill(job.container)
@@ -119,8 +121,6 @@ class Docker(EngineBase):
     def _get_final_stds(self, job):
         return (self.client.logs(job.container, stdout=True, stderr=False),
                 self.client.logs(job.container, stdout=False, stderr=True))
-
-
 
 
 class DockerMachine(Docker):

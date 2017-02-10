@@ -46,9 +46,11 @@ class JobStatusDisplay(Box):
         super(JobStatusDisplay, self).__init__(**kwargs)
         self._job = job
         self.update()
+        self._displayed = False
         self.on_displayed(self.update)
 
     def update(self, *args):
+        self._displayed = True
         jobstat = self._job.status
         status_display = StatusView(self._job)
         if self._job.inputs:

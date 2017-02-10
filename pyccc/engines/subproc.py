@@ -68,7 +68,9 @@ class Subprocess(EngineBase):
         job.subproc.terminate()
 
     def wait(self, job):
+        job._update_displays()
         job.subproc.wait()
+        job._update_displays()
 
     def _list_output_files(self, job, dir=None):
         if dir is None: dir = job.workingdir

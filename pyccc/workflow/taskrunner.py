@@ -11,10 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import json
 import pickle
 import sys
 
 import time
+import traceback
+
 import yaml
 
 import pyccc
@@ -188,6 +191,7 @@ class TaskCCCRunner(AbstractTaskRunner):
 
         except Exception as e:
             print '--------- EXCEPTION DURING EXECUTION ----------------'
+            traceback.print_exc()
             print 'Dumping job information\n'
 
             print '------------ STDOUT -----------------'
@@ -202,14 +206,14 @@ class TaskCCCRunner(AbstractTaskRunner):
             except Exception as printe:
                 print '<ERROR accessing stderr: %s>' % printe
 
-            print '\n------------ EXCEPTION TRACEBACK -----------------'
-
-            raise
+            raise e
 
         finally:
             if getattr(self.job, '_result_json', None):
                 print '    ----- results.json -----'
                 print yaml.safe_dump(self.job._result_json)
+            else:
+                print 'No stored result.json output.'
 
     def _getoutputs(self):
         self.job.reraise_remote_exception()

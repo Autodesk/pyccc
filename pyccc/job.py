@@ -107,6 +107,7 @@ class Job(object):
         self._output_files = None
         self.jobid = None
         self._stopped = None
+        self._display_obj_refs = []
 
     kill = EngineFunction('kill')
     get_stdout_stream = EngineFunction('get_stdoutstream')
@@ -157,7 +158,7 @@ class Job(object):
 
     def wait(self):
         """Wait for job to finish"""
-        if not self._finished:
+        if not self._finished or self._stopped:
             self.engine.wait(self)
             self._finish_job()
 
@@ -226,8 +227,21 @@ class Job(object):
 
     def get_display_object(self):
         """Return a jupyter widget"""
+        import weakref
         from ui import JobStatusDisplay, widgets_enabled
         if widgets_enabled:
-            return JobStatusDisplay(self)
+            obj = JobStatusDisplay(self)
+            self._display_obj_refs.append(weakref.ref(obj))
+            return obj
         else:
             return 'Job "%s" launched. id:%s' % (self.name, self.jobid)
+
+    def _update_displays(self):
+        for ref in self._display_obj_refs:
+            disp = ref()
+            if disp is None:
+                continue
+            if disp._displayed:
+                disp.update()
+
+

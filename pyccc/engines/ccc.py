@@ -127,15 +127,18 @@ class CloudComputeCannon(EngineBase):
         wait_time = 0
         run_time = 0
         while job.status not in status.DONE_STATES:
+            job._update_displays()
             time.sleep(polltime)
             wait_time += polltime
             if job.status == status.RUNNING:
                 run_time += polltime
             if run_time > job.runtime:
                 raise pyccc.TimeoutError(job, 'Job timed out - status "%s"' % job.status)
-            if wait_time > 1000: polltime = 60
-            elif wait_time > 100: polltime = 20
-            elif wait_time > 10: polltime = 5
+            if wait_time > 1000: polltime = 20
+            elif wait_time > 100: polltime = 10
+            elif wait_time > 10: polltime = 2.5
+
+        job._update_displays()
 
     def _get_result_json(self, job):
         if job._result_json is None:
