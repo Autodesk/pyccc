@@ -181,6 +181,8 @@ class TaskCCCRunner(AbstractTaskRunner):
                 print 'No stored result.json output.'
 
     def _dump_exception(self):
+        error_response = self.job.engine.proxy._last_response
+
         print '--------- EXCEPTION DURING EXECUTION ----------------'
         traceback.print_exc()
         print
@@ -204,7 +206,7 @@ class TaskCCCRunner(AbstractTaskRunner):
 
         if isinstance(self.job.engine, pyccc.CloudComputeCannon):
             print '\n  LAST CCC SERVER REQUEST:'
-            pyccc.utils.dump_response_error(self.job.engine.proxy._last_response)
+            pyccc.utils.dump_response_error(error_response)
             print
 
     def _wait_and_display_status(self, start_time):
