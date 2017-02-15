@@ -152,7 +152,6 @@ class CloudComputeCannon(EngineBase):
             elif wait_time > 10: polltime = 2.0
         if verbose:
             print
-
         job._update_displays()
 
     def _get_result_json(self, job):
@@ -160,6 +159,10 @@ class CloudComputeCannon(EngineBase):
             job._result_json = self.proxy.job(command='result',
                                               jobId=[job.jobid])
         return job._result_json[job.jobid]
+
+    def _get_returncode(self, job):
+        result = self._get_result_json(job)
+        return result['exitCode']
 
     def _download(self, path):
         url = self.base_url + path

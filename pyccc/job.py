@@ -91,6 +91,7 @@ class Job(object):
         self.when_finished = when_finished
         self.numcpus = numcpus
         self.runtime = runtime
+        self._returncode = None
 
         self._reset()
 
@@ -163,6 +164,17 @@ class Job(object):
             self._finish_job()
 
     @property
+    def returncode(self):
+        if self._returncode is None:
+            if not self._finished:
+                self._finish_job()
+        return self._returncode
+
+    @returncode.setter
+    def returncode(self, val):
+        self._returncode = val
+
+    @property
     def status(self):
         """
         Returns status of 'queued', 'running', 'finished' or 'error'
@@ -192,6 +204,7 @@ class Job(object):
                                       stat)
         self._output_files = self.engine._list_output_files(self)
         self._final_stdout, self._final_stderr = self.engine._get_final_stds(self)
+        self.returncode = self.engine._get_returncode(self)
         self._finished = True
         if self.when_finished is not None:
             self._callback_result = self.when_finished(self)
@@ -202,17 +215,20 @@ class Job(object):
         Returns:
             Result of the callback function, if present, otherwise none.
         """
-        if not self._finished: self._finish_job()
+        if not self._finished:
+            self._finish_job()
         return self._callback_result
 
     @property
     def stdout(self):
-        if not self._finished: self._finish_job()
+        if not self._finished:
+            self._finish_job()
         return self._final_stdout
 
     @property
     def stderr(self):
-        if not self._finished: self._finish_job()
+        if not self._finished:
+            self._finish_job()
         return self._final_stderr
 
     def get_output(self, filename=None):

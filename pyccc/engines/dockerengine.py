@@ -81,8 +81,12 @@ class Docker(EngineBase):
     def wait(self, job, verbose=False):
         # verbose currently ignored ...
         job._update_displays()
-        self.client.wait(job.container)
+        job.returncode = self.client.wait(job.container)
         job._update_displays()
+
+    def _get_returncode(self, job):
+        assert self.get_status(job) == status.FINISHED
+        return self.client.wait(job.container)
 
     def kill(self, job):
         self.client.kill(job.container)

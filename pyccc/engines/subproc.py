@@ -73,6 +73,9 @@ class Subprocess(EngineBase):
         job.subproc.wait()
         job._update_displays()
 
+    def _get_returncode(self, job):
+        return job.subproc.returncode
+
     def _list_output_files(self, job, dir=None):
         if dir is None: dir = job.workingdir
         filenames = {}
