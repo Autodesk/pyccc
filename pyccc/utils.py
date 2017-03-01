@@ -75,6 +75,12 @@ def can_use_widgets():
     except ImportError:
         return False
 
+    ipyver = ipy.__version__
+    major = ipyver.split('.')[0]
+    if int(major) < 6:
+        print 'WARNING: widget displays require ipywidgets version 6 or higher'
+        return False
+
     return True
 
 

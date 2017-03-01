@@ -17,14 +17,14 @@ from pyccc import status, utils
 
 if utils.can_use_widgets():
     widgets_enabled = True
-    from ipywidgets import Box, Tab
+    from ipywidgets import Box, Tab, Layout
     import ipywidgets as ipy
     import traitlets
 
 else:
     widgets_enabled = False
     ipy = traitlets = None
-    Box = Tab = object
+    Box = Tab = Layout = object
 
 
 __all__ = 'JobStatusDisplay'.split()
@@ -43,6 +43,12 @@ class JobStatusDisplay(Box):
         :return:
         """
         kwargs.setdefault('orientation', 'vertical')
+        layout = kwargs.setdefault('layout', Layout())
+        if not layout.display:
+            layout.display = 'flex'
+        if not layout.flex_flow:
+            layout.flex_flow = 'column'
+
         super(JobStatusDisplay, self).__init__(**kwargs)
         self._job = job
         self.update()
@@ -54,7 +60,8 @@ class JobStatusDisplay(Box):
         jobstat = self._job.status
         status_display = StatusView(self._job)
         if self._job.inputs:
-            input_browser = FileBrowser(self._job.inputs, margin=5, font_size=9)
+            input_browser = FileBrowser(self._job.inputs,
+                                        layout=Layout(margin='5px', font_size=9))
         else:
             input_browser = ipy.HTML('No input files')
         file_browser = ipy.Tab([input_browser])
@@ -67,7 +74,8 @@ class JobStatusDisplay(Box):
                 output_files['Standard output'] = self._job.stdout
             if self._job.stderr:
                 output_files['Standard error'] = self._job.stderr
-            output_browser = FileBrowser(output_files, margin=5, font_size=9)
+            output_browser = FileBrowser(output_files,
+                                         layout=Layout(margin='5px', font_size=9))
             file_browser.children = [input_browser, output_browser]
             file_browser.set_title(1, 'Output files')
             self.children = [status_display, file_browser]
@@ -103,9 +111,9 @@ class FileBrowser(Tab):
 class FileView(Box):
     CHUNK = 10000
     TRUNCATE_MESSAGE = '... [click "See more" to continue]'
-    TEXTAREA_KWARGS = dict(font_family='monospace',
-                           width='75%',
-                           disabled=True)
+    TEXTAREA_KWARGS = {'layout':Layout(font_family='monospace',
+                                           width='600'),
+                       'disabled':True}
 
     def __init__(self, fileobj, **kwargs):
         super(FileView, self).__init__(**kwargs)
@@ -130,14 +138,15 @@ class FileView(Box):
 
     def render_string(self):
         height = '%spx' % min(self._string.count('\n') * 16 + 36, 600)
+        kwargs = self.TEXTAREA_KWARGS.copy()
         try:
+            kwargs['layout'].height = height
             self.textarea = ipy.Textarea(self._string[:self.CHUNK],
-                                         height=height,
-                                         **self.TEXTAREA_KWARGS)
+                                         **kwargs)
         except traitlets.TraitError:
+            kwargs['layout'].height = '300px'
             self.textarea = ipy.Textarea('[NOT SHOWN - UNABLE TO DECODE FILE]',
-                                         height='300px',
-                                         **self.TEXTAREA_KWARGS)
+                                         **kwargs)
             return
         finally:
             self.children = [self.textarea]
@@ -180,15 +189,20 @@ class StatusView(Box):
 
     def __init__(self, job, **kwargs):
         kwargs.setdefault('orientation', 'vertical')
+        layout = kwargs.setdefault('layout', Layout())
+        if not layout.display:
+            layout.display = 'flex'
+        if not layout.flex_flow:
+            layout.flex_flow = 'column'
 
         super(StatusView,self).__init__(**kwargs)
         self._job = job
         stat = job.status
         text = ipy.HTML(self.STATUS_STRING%(job.name,
-                                              str(job.engine),
-                                              job.jobid,
-                                              job.image,
-                                              job.command,
+                                            str(job.engine),
+                                            job.jobid,
+                                            job.image,
+                                            job.command,
                                             stat))
         if stat == status.QUEUED:
             bar_spec = dict(value=1, bar_style='danger')
