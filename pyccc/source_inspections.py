@@ -45,7 +45,7 @@ def get_global_vars(func):
     globalvars = dict(modules={},
                       functions={},
                       vars={})
-    for name, value in closure['global'].iteritems():
+    for name, value in closure['global'].items():
         if inspect.ismodule(value):  # TODO: deal FUNCTIONS from closure
             globalvars['modules'][name] = value.__name__
         elif inspect.isfunction(value):

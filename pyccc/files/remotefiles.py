@@ -115,11 +115,15 @@ class LazyDockerCopy(LazyFetcherBase):
         was undocumented as of this writing.
         See http://stackoverflow.com/questions/22683410/docker-python-client-api-copy
         """
-        import docker
-        self._open_tmpfile()
-        client = docker.Client(**self.dockerhost)
-        request = client.copy(self.containerid, self.containerpath)
+        from .. import docker_utils as du
 
+        self._open_tmpfile()
+        client = du.get_docker_apiclient(**self.dockerhost)
+        args = (self.containerid, self.containerpath)
+        if hasattr(client, 'get_archive'):  # handle different docker-py versions
+            request, meta = client.get_archive(*args)
+        else:
+            request = client.copy(*args)
         # from stackoverflow link
         filelike = io.BytesIO(request.read())
         tar = tarfile.open(fileobj=filelike)

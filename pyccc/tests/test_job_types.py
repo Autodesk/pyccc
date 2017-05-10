@@ -1,12 +1,16 @@
 from itertools import product
 
+import sys
 import pytest
 import pyccc
 
 """Basic test battery for regular and python jobs on all underlying engines"""
 
-REMOTE_PYTHON_VERSIONS = ['2.7', '3.5']
+REMOTE_PYTHON_VERSIONS = {2: '2.7', 3: '3.6'}
+PYVERSION = REMOTE_PYTHON_VERSIONS[sys.version_info.major]
+
 fixture_types = {}
+
 
 
 def typedfixture(*types, **kwargs):
@@ -52,7 +56,10 @@ def subprocess_engine():
 
 @typedfixture('engine')
 def public_ccc_engine():
-    return pyccc.CloudComputeCannon('cloudcomputecannon.bionano.autodesk.com:9000')
+    if not pytest.config.getoption("--testccc"):
+        pytest.skip("need --testccc option to run")
+    else:
+        return pyccc.CloudComputeCannon('cloudcomputecannon.bionano.autodesk.com:9000')
 
 
 @typedfixture('engine')
@@ -92,35 +99,32 @@ def test_sleep_raises_jobstillrunning(fixture, request):
     assert job.stdout.strip() == 'done'
 
 
-@pytest.mark.parametrize('fixture,pyversion',
-                         product(fixture_types['engine'], REMOTE_PYTHON_VERSIONS))
-def test_python_function(fixture, pyversion, request):
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_python_function(fixture, request):
     engine = request.getfuncargvalue(fixture)
     pycall = pyccc.PythonCall(_testfun, 5)
-    job = engine.launch('python:%s-slim' % pyversion, pycall, interpreter=pyversion)
+    job = engine.launch('python:%s-slim'%PYVERSION, pycall, interpreter=PYVERSION)
     job.wait()
     assert job.result == 6
 
 
-@pytest.mark.parametrize('fixture,pyversion',
-                         product(fixture_types['engine'], REMOTE_PYTHON_VERSIONS))
-def test_python_instance_method(fixture, pyversion, request):
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_python_instance_method(fixture, request):
     engine = request.getfuncargvalue(fixture)
     obj = _TestCls()
     pycall = pyccc.PythonCall(obj.increment, by=2)
-    job = engine.launch('python:%s-slim' % pyversion, pycall, interpreter=pyversion)
+    job = engine.launch('python:%s-slim'%PYVERSION, pycall, interpreter=PYVERSION)
     job.wait()
 
     assert job.result == 2
     assert job.updated_object.x == 2
 
 
-@pytest.mark.parametrize('fixture,pyversion',
-                         product(fixture_types['engine'], REMOTE_PYTHON_VERSIONS))
-def test_python_reraises_exception(fixture, pyversion, request):
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_python_reraises_exception(fixture, request):
     engine = request.getfuncargvalue(fixture)
     pycall = pyccc.PythonCall(_raise_valueerror, 'this is my message')
-    job = engine.launch('python:%s-slim' % pyversion, pycall, interpreter=pyversion)
+    job = engine.launch('python:%s-slim'%PYVERSION, pycall, interpreter=PYVERSION)
     job.wait()
 
     with pytest.raises(ValueError):

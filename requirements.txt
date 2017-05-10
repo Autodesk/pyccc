@@ -1,4 +1,6 @@
 chardet
+docker
 funcsigs
+future
 requests
 tblib

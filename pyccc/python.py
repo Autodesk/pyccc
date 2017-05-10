@@ -141,7 +141,7 @@ class PythonJob(job.Job):
                                                self.function_call.function.__name__)]
 
         if remote_function is not None and remote_function.global_functions:
-            for name, f in remote_function.global_functions.iteritems():
+            for name, f in remote_function.global_functions.items():
                 srclines.append('\n# source code for function "%s"' % name)
                 srclines.append(src.getsource(f))
 
@@ -150,7 +150,7 @@ class PythonJob(job.Job):
 
         if isinstance(srclines, str):
             srclines = b'# -*- coding: utf-8 -*-\n' + srclines.encode('utf-8')
-        return srclines
+        return '\n'.join(srclines)
 
     @property
     def result(self):
@@ -243,22 +243,14 @@ class PackagedFunction(native.object):
             self.obj = func.__self__
             self.imethod_name = func.__name__
         else:
-            self.__name__ = func.__name__
+            self.func_name = func.__name__
         self.args = function_call.args
         self.kwargs = function_call.kwargs
 
-        # Store any methods or variables bound from the function's closure
-        closure = src.getclosurevars(func)
-        if closure.nonlocals:
-            raise TypeError("Can't launch a job with closure variables: %s"%
-                            list(closure.nonlocals.keys()))
-        self.global_closure = {}
-        self.global_modules = {}
-        for name, value in closure.globals.items():
-            if inspect.ismodule(value):
-                self.global_modules[name] = value.__name__
-            else:
-                self.global_closure[name] = value
+        globalvars = src.get_global_vars(func)
+        self.global_closure = globalvars['vars']
+        self.global_modules = globalvars['modules']
+        self.global_functions = globalvars['functions']
 
     def __getstate__(self):
         """ Strip unpickleable function references before pickling

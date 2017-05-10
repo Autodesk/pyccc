@@ -42,8 +42,7 @@ def main():
 
         result = funcpkg.run(func)
 
-        serialize_output(result,
-                         separate_fields=funcpkg._separate_io_fields is not None)
+        serialize_output(result)
 
         if funcpkg.is_imethod:
             with open('_object_state.pkl', 'w') as ofp:
@@ -58,13 +57,6 @@ def load_job():
     with open('function.pkl', 'r') as pf:
         funcpkg = MappedUnpickler(pf).load()
 
-    if funcpkg._separate_io_fields:
-        inputs = {}
-        for field in funcpkg._separate_io_fields:
-            with open('inputs/%s.pkl' % field, 'r') as infile:
-                inputs[field] = pickle.load(infile)
-        funcpkg.kwargs = inputs
-
     if hasattr(funcpkg, 'func_name'):
         func = getattr(source, funcpkg.func_name)
     else:
@@ -73,7 +65,7 @@ def load_job():
     return funcpkg, func
 
 
-def serialize_output(result, separate_fields=False):
+def serialize_output(result):
     with open('_function_return.pkl', 'w') as rp:
         pickle.dump(result, rp, pickle.HIGHEST_PROTOCOL)
 
@@ -85,6 +77,7 @@ def capture_exceptions(exc):
         pickle.dump(exc, excfile)
     with open('traceback.txt', 'w') as tbfile:
         tb.print_exc(file=tbfile)
+
 
 class MappedUnpickler(pickle.Unpickler):
     RENAMETABLE = {'pyccc.python': 'source',

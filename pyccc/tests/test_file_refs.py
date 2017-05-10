@@ -30,12 +30,12 @@ def _gen_tempfile_path():
 
 @typedfixture('container')
 def bytescontainer():
-    return pyccc.BytesContainer(BYTES_CONTENT)
+    return pyccc.files.BytesContainer(BYTES_CONTENT)
 
 
 @typedfixture('container')
 def stringcontainer():
-    return pyccc.StringContainer(STRING_CONTENT)
+    return pyccc.files.StringContainer(STRING_CONTENT)
 
 
 @typedfixture('container')
