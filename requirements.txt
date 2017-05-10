@@ -1,6 +1,6 @@
 chardet
-docker
-funcsigs
+docker > 2.0
+funcsigs ; python_version < '3.3'
 future
 requests
 tblib

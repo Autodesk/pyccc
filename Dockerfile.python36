@@ -1,0 +1,6 @@
+FROM python:3.6-slim
+
+RUN mkdir -p /opt
+ADD . /opt/py-cloud-compute-cannon
+RUN pip install /opt/py-cloud-compute-cannon
+RUN pip install -r /opt/py-cloud-compute-cannon/pyccc/tests/requirements.txt
