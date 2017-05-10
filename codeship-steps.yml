@@ -4,14 +4,14 @@
    - test3_6
    - test2_7
   steps:
-    - command: py.test -n 4
+    - command: py.test -n 4 -v
 
 
 - name: deploy
   service: test3_6
   type: serial
   steps:
-     - command: [ $(python -c "import pyccc; print(pyccc.__version___)") ==  ${CI_BRANCH} ] || exit 1
+     - command: '[ $(python -c "import pyccc; print(pyccc.__version___)") ==  ${CI_BRANCH} ] || exit 1'
        name: check_pyversion
      - command: echo python setup.py check sdist upload --password ${PYPI_PASSWORD} --username ${PYPI_USER}
        name: pypi_deploy
