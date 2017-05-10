@@ -1,7 +1,3 @@
-- name: citest
-  service: test3_6
-  command: docker images
-
 - type: parallel
   services:
    - test3_6
