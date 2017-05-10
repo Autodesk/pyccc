@@ -118,9 +118,11 @@ class PythonJob(job.Job):
         python_files['source.py'] = sourcefile
         return python_files
 
-    def _get_source(self):
+    def _get_source(self, remote_function=None):
         """
         Calls the appropriate source inspection to get any required source code
+
+        Will also get code for any functions referenced via closure (currently one level deep only)
 
         Returns:
              bytes: utf-8 encoded source code
@@ -131,15 +133,20 @@ class PythonJob(job.Job):
                 obj = func.__self__.__class__
             else:
                 obj = func
-            srclines = src.getsource(obj)
+            srclines = [src.getsource(obj)]
         elif self.function_call.is_instancemethod:
-            srclines = ''
+            srclines = ['']
         else:
-            srclines = "from %s import %s\n" % (self.function_call.function.__module__,
-                                                self.function_call.function.__name__)
+            srclines = ["from %s import %s\n"%(self.function_call.function.__module__,
+                                               self.function_call.function.__name__)]
+
+        if remote_function is not None and remote_function.global_functions:
+            for name, f in remote_function.global_functions.iteritems():
+                srclines.append('\n# source code for function "%s"' % name)
+                srclines.append(src.getsource(f))
 
         # This is the only source code needed from pyccc
-        srclines += PACKAGEDFUNCTIONSOURCE
+        srclines.append(PACKAGEDFUNCTIONSOURCE)
 
         if isinstance(srclines, str):
             srclines = b'# -*- coding: utf-8 -*-\n' + srclines.encode('utf-8')
@@ -216,17 +223,20 @@ class PackagedFunction(native.object):
     """
     This object captures enough information to serialize, deserialize, and run a
     python function
+
+    Specifically, this creates an object that, after pickling, can be unpickled and run,
+    and behave in *basically* the same way as the original function. HOWEVER, the function's
+    source code must be sent separately - that part can't be pickled.
+
+    Notes:
+        - This is *designed* to execute arbitrary code. Use with trusted sources only!
+        - This will work best with *pure* functions operating on well-behaved python objects.
+        - All relevant variables and arguments need to be pickle-able.
+        - Object methods that only operate on the object itself can be considered "pure".
+        - Function side effects are not tracked at all.
+        - Closure variables and module references will be sent along with the function
     """
     def __init__(self, function_call):
-        """
-        Conduct and store enough introspection on the passed function and arguments so
-        that they can be serialized and run elsewhere
-        """
-        # TODO: check whether pickled object can be successfully unpickled
-        # i.e., make sure its functions and classes are defined in the
-        # base code
-
-        # Store the function, arguments (and its object if necessary)
         func = function_call.function
         self.is_imethod = hasattr(func, '__self__')
         if self.is_imethod:
@@ -250,6 +260,13 @@ class PackagedFunction(native.object):
             else:
                 self.global_closure[name] = value
 
+    def __getstate__(self):
+        """ Strip unpickleable function references before pickling
+        """
+        state = self.__dict__.copy()
+        state['global_functions'] = {key: None for key in state['global_functions']}
+        return state
+
     def run(self, func=None):
         """
         Evaluates the packaged function as func(*self.args,**self.kwargs)
@@ -258,7 +275,7 @@ class PackagedFunction(native.object):
         be serialized.
 
         Returns:
-             function's return value
+            object: function's return value
         """
         to_run = self.prepare_namespace(func)
         result = to_run(*self.args, **self.kwargs)
@@ -270,7 +287,7 @@ class PackagedFunction(native.object):
         Re-associates any previously bound variables and modules from the closure
 
         Returns:
-            Prepared callable function
+            callable: ready-to-call function
         """
         if self.is_imethod:
             to_run = getattr(self.obj, self.imethod_name)
@@ -282,6 +299,8 @@ class PackagedFunction(native.object):
             to_run.__globals__[varname] = eval(varname)
         for name, value in self.global_closure.items():
             to_run.__globals__[name] = value
+        for funcname in self.global_functions:
+            to_run.func_globals[funcname] = eval(funcname)
         return to_run
 
 PACKAGEDFUNCTIONSOURCE = '\n' + src.getsource(PackagedFunction)

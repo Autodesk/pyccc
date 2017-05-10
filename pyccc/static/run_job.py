@@ -20,7 +20,6 @@ Note:
     This script must be able to run in both Python 2.7 and 3.5+ *without any dependencies*
 """
 from __future__ import print_function, unicode_literals, absolute_import, division
-
 import os
 import types
 import sys
@@ -29,6 +28,63 @@ import traceback as tb
 
 PICKLE_PROTOCOL = 2  # required for 2/3 compatible pickle objects
 
+import source  # the dynamically created source file
+
+
+RENAMETABLE = {'pyccc.python': 'source',
+               '__main__': 'source'}
+
+
+def main():
+    os.environ['IS_PYCCC_JOB'] = '1'
+    try:
+        funcpkg, func = load_job()
+
+        result = funcpkg.run(func)
+
+        serialize_output(result,
+                         separate_fields=funcpkg._separate_io_fields is not None)
+
+        if funcpkg.is_imethod:
+            with open('_object_state.pkl', 'w') as ofp:
+                pickle.dump(funcpkg.obj, ofp, PICKLE_PROTOCOL)
+
+    # Catch all exceptions and return them to the client
+    except Exception as exc:
+        capture_exceptions(exc)
+
+
+def load_job():
+    with open('function.pkl', 'r') as pf:
+        funcpkg = MappedUnpickler(pf).load()
+
+    if funcpkg._separate_io_fields:
+        inputs = {}
+        for field in funcpkg._separate_io_fields:
+            with open('inputs/%s.pkl' % field, 'r') as infile:
+                inputs[field] = pickle.load(infile)
+        funcpkg.kwargs = inputs
+
+    if hasattr(funcpkg, 'func_name'):
+        func = getattr(source, funcpkg.func_name)
+    else:
+        func = None
+
+    return funcpkg, func
+
+
+def serialize_output(result, separate_fields=False):
+    with open('_function_return.pkl', 'w') as rp:
+        pickle.dump(result, rp, pickle.HIGHEST_PROTOCOL)
+
+
+def capture_exceptions(exc):
+    if len(sys.argv) > 1 and sys.argv[1] == '--debug':
+        raise  # for debugging in a container
+    with open('exception.pkl', 'w') as excfile:
+        pickle.dump(exc, excfile)
+    with open('traceback.txt', 'w') as tbfile:
+        tb.print_exc(file=tbfile)
 
 class MappedUnpickler(pickle.Unpickler):
     RENAMETABLE = {'pyccc.python': 'source',
@@ -43,10 +99,11 @@ class MappedUnpickler(pickle.Unpickler):
          3) Creates on-the-fly modules to store any other classes present in source.py
 
         References:
-            This is a modified version of the 2-only recipe from
-            https://wiki.python.org/moin/UsingPickle/RenamingModules.
-            It's been modified for 2/3 cross-compatibility
-        """
+                This is a modified version of the 2-only recipe from
+                https://wiki.python.org/moin/UsingPickle/RenamingModules.
+                It's been modified for 2/3 cross-compatibility    """
+        import pickle
+
         modname = self.RENAMETABLE.get(module, module)
 
         try:
@@ -65,35 +122,5 @@ class MappedUnpickler(pickle.Unpickler):
 
 
 if __name__ == '__main__':
-    import source  # this is the dynamically created source module
-    os.environ['IS_PYCCC_JOB'] = '1'
-    try:
-        # Deserialize and set up the packaged function (see pyccc.python.PackagedFunction)
-        with open('function.pkl', 'rb') as pf:
-            job = MappedUnpickler(pf).load()
-
-        if not hasattr(job, 'obj'):  # it's a standalone function
-            func = getattr(source, job.__name__)
-        else:  # it's an instance method
-            func = None
-
-        # Run the function!
-        result = job.run(func)
-
-        # Serialize the results
-        with open('_function_return.pkl', 'wb') as rp:
-            pickle.dump(result, rp, PICKLE_PROTOCOL)
-        if job.is_imethod:
-            with open('_object_state.pkl', 'wb') as ofp:
-                pickle.dump(job.obj, ofp, PICKLE_PROTOCOL)
-
-    # Catch exception, save it, raise
-    except Exception as exc:
-        with open('exception.pkl', 'wb') as excfile:
-            pickle.dump(exc, excfile, PICKLE_PROTOCOL)
-        with open('traceback.txt', 'w') as tbfile:
-            tb.print_exc(file=tbfile)
-
-        raise
-
+    main()
 

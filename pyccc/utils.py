@@ -16,7 +16,7 @@ from future import standard_library
 standard_library.install_aliases()
 from future.builtins import *
 
-import os
+import sys
 from io import StringIO
 from functools import wraps
 from uuid import uuid4
@@ -52,7 +52,7 @@ def wget(url):
     return filestring
 
 
-def if_not_none(item,default):
+def if_not_none(item, default):
     if item is None:
         return default
     else:
@@ -78,6 +78,27 @@ def autodecode(b):
         if result['confidence'] < 0.95:
             warnings.warn('autodecode failed with utf-8; guessing %s' % result['encoding'])
         return result.decode(result['encoding'])
+
+
+def can_use_widgets():
+    """ Expanded from from http://stackoverflow.com/a/34092072/1958900
+    """
+    if 'IPython' not in sys.modules:
+        # IPython hasn't been imported, definitely not
+        return False
+    from IPython import get_ipython
+
+    # check for `kernel` attribute on the IPython instance
+    if getattr(get_ipython(), 'kernel', None) is None:
+        return False
+
+    try:
+        import ipywidgets as ipy
+        import traitlets
+    except ImportError:
+        return False
+
+    return True
 
 
 class PipedFile(object):

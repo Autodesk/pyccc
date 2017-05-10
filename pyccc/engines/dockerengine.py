@@ -36,14 +36,26 @@ class Docker(EngineBase):
                 client from the job's environmental varaibles
             workingdir (str): default working directory to create in the containers
         """
-        if isinstance(client, basestring):
-            client = docker.Client(client)
 
-        if client is None:
-            client = docker.Client(**docker.utils.kwargs_from_env())
-        self.client = client
+        self.client = self.connect_to_docker(client)
         self.default_wdir = workingdir
         self.hostname = self.client.base_url
+
+    def connect_to_docker(self, client=None):
+        if isinstance(client, basestring):
+            client = du.get_docker_apiclient(client)
+        if client is None:
+            client = du.get_docker_apiclient(**docker.utils.kwargs_from_env())
+        return client
+
+    def __getstate__(self):
+        """
+        We don't pickle the docker client, for now
+        """
+        newdict = self.__dict__.copy()
+        if 'client' in newdict:
+            newdict['client'] = None
+        return newdict
 
     def test_connection(self):
         version = self.client.version()
@@ -114,13 +126,7 @@ class Docker(EngineBase):
         return (utils.autodecode(stdout),
                 utils.autodecode(stderr))
 
-    def __getstate__(self):
-        """
-        We don't pickle the docker client, for now
-        """
-        newdict = self.__dict__.copy()
-        newdict.pop('client', None)
-        return newdict
+
 
 
 class DockerMachine(Docker):

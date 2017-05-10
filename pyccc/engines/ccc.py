@@ -62,7 +62,8 @@ class CloudComputeCannon(EngineBase):
         self.proxy = JsonRpcProxy(self.endpoint)
         self.hostname = self.base_url
 
-        if testconnection: self.test_connection()
+        if testconnection:
+            self.test_connection()
 
     def test_connection(self):
         """ Test that we can successfully talk to the server.

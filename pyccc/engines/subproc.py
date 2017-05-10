@@ -61,8 +61,8 @@ class Subprocess(EngineBase):
         self._check_job(job)
         job.workingdir = utils.make_local_temp_dir()
         if job.inputs:
-            for filename, file in job.inputs.items():
-                file.put('%s/%s' % (job.workingdir, filename))
+            for filename, f in job.inputs.items():
+                f.put(os.path.join(job.workingdir, filename))
 
         job.subproc = subprocess.Popen(job.command,
                                        shell=True,
