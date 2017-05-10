@@ -4,3 +4,8 @@ RUN mkdir -p /opt
 ADD . /opt/py-cloud-compute-cannon
 RUN pip install /opt/py-cloud-compute-cannon
 RUN pip install -r /opt/py-cloud-compute-cannon/pyccc/tests/requirements.txt
+RUN apt-get update && apt-get install -y curl
+RUN curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-17.04.0-ce.tgz \
+  && tar xzvf docker-17.04.0-ce.tgz \
+  && mv docker/docker /usr/local/bin \
+  && rm -r docker docker-17.04.0-ce.tgz
