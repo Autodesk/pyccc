@@ -1,3 +1,7 @@
+- name: citest
+  service: test3_6
+  command: docker images
+
 - type: parallel
   services:
    - test3_6
@@ -17,4 +21,5 @@
        name: pypi_deploy
   # tests for semantic versions
   tag: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$'
+
 
