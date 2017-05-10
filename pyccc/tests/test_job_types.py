@@ -64,7 +64,7 @@ def public_ccc_engine():
 
 @typedfixture('engine')
 def local_docker_engine():
-    return pyccc.Docker('unix://var/run/docker.sock')
+    return pyccc.Docker()
 
 
 ###################
