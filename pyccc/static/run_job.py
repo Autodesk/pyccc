@@ -45,7 +45,7 @@ def main():
         serialize_output(result)
 
         if funcpkg.is_imethod:
-            with open('_object_state.pkl', 'w') as ofp:
+            with open('_object_state.pkl', 'wb') as ofp:
                 pickle.dump(funcpkg.obj, ofp, PICKLE_PROTOCOL)
 
     # Catch all exceptions and return them to the client
@@ -54,7 +54,7 @@ def main():
 
 
 def load_job():
-    with open('function.pkl', 'r') as pf:
+    with open('function.pkl', 'rb') as pf:
         funcpkg = MappedUnpickler(pf).load()
 
     if hasattr(funcpkg, 'func_name'):
@@ -66,14 +66,14 @@ def load_job():
 
 
 def serialize_output(result):
-    with open('_function_return.pkl', 'w') as rp:
+    with open('_function_return.pkl', 'wb') as rp:
         pickle.dump(result, rp, pickle.HIGHEST_PROTOCOL)
 
 
 def capture_exceptions(exc):
     if len(sys.argv) > 1 and sys.argv[1] == '--debug':
         raise  # for debugging in a container
-    with open('exception.pkl', 'w') as excfile:
+    with open('exception.pkl', 'wb') as excfile:
         pickle.dump(exc, excfile)
     with open('traceback.txt', 'w') as tbfile:
         tb.print_exc(file=tbfile)
