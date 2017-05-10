@@ -1,10 +1,10 @@
-- name: test
-  type: parallel
+- type: parallel
   services:
    - test3_6
    - test2_7
   steps:
-    - command: py.test -n 4 -v
+    - command: py.test -n 4
+      name: runtests
 
 
 - name: deploy
