@@ -11,7 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import absolute_import
+from __future__ import print_function, unicode_literals, absolute_import, division
+from future import standard_library
+standard_library.install_aliases()
+from future.builtins import *
+from past.builtins import basestring
 
 import subprocess
 
@@ -117,8 +121,10 @@ class Docker(EngineBase):
         return output_files
 
     def _get_final_stds(self, job):
-        return (self.client.logs(job.container, stdout=True, stderr=False),
-                self.client.logs(job.container, stdout=False, stderr=True))
+        stdout = self.client.logs(job.container, stdout=True, stderr=False)
+        stderr = self.client.logs(job.container, stdout=False, stderr=True)
+        return (utils.autodecode(stdout),
+                utils.autodecode(stderr))
 
 
 

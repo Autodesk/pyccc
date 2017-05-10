@@ -14,13 +14,22 @@
 """
 Functions to that allow python commands to be run as jobs with the platform API
 """
-import cPickle as cp
+from __future__ import print_function, unicode_literals, absolute_import, division
+from future import standard_library
+standard_library.install_aliases()
+from future.builtins import *
+
+import sys
+import pickle
+import inspect
 
 import pyccc
 from pyccc import job
 from pyccc import source_inspections as src
 from pyccc.exceptions import ProgramFailure
 from pyccc.files import StringContainer, LocalFile
+
+from ._native import native
 
 
 def exports(o):
@@ -30,6 +39,8 @@ __all__ = []
 
 
 PYTHON_JOB_FILE = LocalFile('%s/static/run_job.py' % pyccc.PACKAGE_PATH)
+DEFAULT_INTERPRETER = 'python%s.%s' % sys.version_info[:2]
+PICKLE_PROTOCOL = 2  # required for 2/3 compatibile pickle objects
 
 
 @exports
@@ -40,7 +51,7 @@ class PythonCall(object):
         self.kwargs = kwargs
 
         try:
-            temp = function.im_self.__class__
+            temp = function.__self__.__class__
         except AttributeError:
             self.is_instancemethod = False
         else:
@@ -49,16 +60,18 @@ class PythonCall(object):
 
 @exports
 class PythonJob(job.Job):
-    SHELL_COMMAND = 'python2 run_job.py'
 
     # @utils.doc_inherit
-    def __init__(self, engine, image, command, sendsource=True, **kwargs):
+    def __init__(self, engine, image, command,
+                 interpreter=DEFAULT_INTERPRETER,
+                 sendsource=True, **kwargs):
         self._raised = False
         self._updated_object = None
         self._exception = None
         self._traceback = None
         self.sendsource = sendsource
         self._function_result = None
+        self.interpreter = self._clean_interpreter_string(interpreter)
 
         self.function_call = command
 
@@ -70,21 +83,37 @@ class PythonJob(job.Job):
         python_files = self._get_python_files()
         inputs.update(python_files)
 
-        super(PythonJob, self).__init__(engine, image, self.SHELL_COMMAND,
+        command = '%s run_job.py' % self.interpreter
+
+        super(PythonJob, self).__init__(engine, image, command,
                                         **kwargs)
+
+    @staticmethod
+    def _clean_interpreter_string(istr):
+        try:
+            float(istr)
+        except ValueError:
+            return istr
+        else:
+            return 'python' + str(istr)
+
 
     def _get_python_files(self):
         """
         Construct the files to send the remote host
-        :return: dictionary of filenames and file objects
+
+        Returns:
+             dict: dictionary of filenames and file objects
         """
         python_files = {'run_job.py': PYTHON_JOB_FILE}
 
         remote_function = PackagedFunction(self.function_call)
-        python_files['function.pkl'] = StringContainer(cp.dumps(remote_function, protocol=2),
-                                                       'function.pkl')
+        python_files['function.pkl'] = pyccc.BytesContainer(
+                pickle.dumps(remote_function, protocol=PICKLE_PROTOCOL),
+                name='function.pkl')
 
-        sourcefile = StringContainer(self._get_source(remote_function), 'source.py')
+        sourcefile = StringContainer(self._get_source(),
+                                     name='source.py')
 
         python_files['source.py'] = sourcefile
         return python_files
@@ -96,13 +125,12 @@ class PythonJob(job.Job):
         Will also get code for any functions referenced via closure (currently one level deep only)
 
         Returns:
-             str: string containing source code. If the relevant code is unicode, it will be
-             encoded as utf-8, with the encoding declared in the first line of the file
+             bytes: utf-8 encoded source code
         """
         if self.sendsource:
             func = self.function_call.function
             if self.function_call.is_instancemethod:
-                obj = func.im_self.__class__
+                obj = func.__self__.__class__
             else:
                 obj = func
             srclines = [src.getsource(obj)]
@@ -113,17 +141,16 @@ class PythonJob(job.Job):
                                                self.function_call.function.__name__)]
 
         if remote_function is not None and remote_function.global_functions:
-            for name, f in remote_function.global_functions.iteritems():
+            for name, f in remote_function.global_functions.items():
                 srclines.append('\n# source code for function "%s"' % name)
                 srclines.append(src.getsource(f))
 
         # This is the only source code needed from pyccc
         srclines.append(PACKAGEDFUNCTIONSOURCE)
 
-        sourcecode = '\n'.join(srclines)
-        if isinstance(sourcecode, unicode):
-            sourcecode = '# -*- coding: utf-8 -*-\n' + sourcecode.encode('utf-8')
-        return sourcecode
+        if isinstance(srclines, str):
+            srclines = b'# -*- coding: utf-8 -*-\n' + srclines.encode('utf-8')
+        return '\n'.join(srclines)
 
     @property
     def result(self):
@@ -146,10 +173,8 @@ class PythonJob(job.Job):
             try:
                 returnval = self.get_output('_function_return.pkl')
             except KeyError:
-                raise ProgramFailure('The remote python program crashed without throwing an '
-                                     'exception. Please carefully examine the execution '
-                                     'environment.')
-            self._callback_result = cp.loads(returnval.read())
+                raise ProgramFailure(self)
+            self._callback_result = pickle.loads(returnval.read('rb'))
         return self._callback_result
 
     @property
@@ -160,7 +185,7 @@ class PythonJob(job.Job):
         """
         if self._updated_object is None:
             self.reraise_remote_exception()
-            self._updated_object = cp.loads(self.get_output('_object_state.pkl').read())
+            self._updated_object = pickle.loads(self.get_output('_object_state.pkl').read('rb'))
         return self._updated_object
 
     @property
@@ -172,7 +197,7 @@ class PythonJob(job.Job):
             if 'exception.pkl' in self.get_output():
                 self._raised = False
                 try:
-                    self._exception = cp.loads(self.get_output('exception.pkl').read())
+                    self._exception = pickle.loads(self.get_output('exception.pkl').read('rb'))
                 except Exception as exc:  # catches errors in unpickling the exception
                     self._exception = exc
                 self._traceback = self.get_output('traceback.txt').read()
@@ -188,10 +213,13 @@ class PythonJob(job.Job):
         import tblib
         if (force or not self._raised) and self.exception:
             self._raised = True
-            raise self._exception, None, tblib.Traceback.from_string(self._traceback).as_traceback()
+            raise self._exception
 
 
-class PackagedFunction(object):
+# Note: PackagedFunction does NOT inherit from `future.builtins.object` - that would introduce a
+# dependency on the `future` package when we try to run this remotely. Instead, we just use the
+# interpreter's built-in `object` type.
+class PackagedFunction(native.object):
     """
     This object captures enough information to serialize, deserialize, and run a
     python function
@@ -210,9 +238,9 @@ class PackagedFunction(object):
     """
     def __init__(self, function_call):
         func = function_call.function
-        self.is_imethod = hasattr(func, 'im_self')
+        self.is_imethod = hasattr(func, '__self__')
         if self.is_imethod:
-            self.obj = func.im_self
+            self.obj = func.__self__
             self.imethod_name = func.__name__
         else:
             self.func_name = func.__name__
@@ -224,9 +252,6 @@ class PackagedFunction(object):
         self.global_modules = globalvars['modules']
         self.global_functions = globalvars['functions']
 
-        # this is a bit of a hack to re-use this class with workflows
-        self._separate_io_fields = getattr(function_call, 'separate_fields', None)
-
     def __getstate__(self):
         """ Strip unpickleable function references before pickling
         """
@@ -237,7 +262,7 @@ class PackagedFunction(object):
     def run(self, func=None):
         """
         Evaluates the packaged function as func(*self.args,**self.kwargs)
-        If func is a method of an object, it's accessed as getattr(self.obj,func_name).
+        If func is a method of an object, it's accessed as getattr(self.obj,__name__).
         If it's a user-defined function, it needs to be passed in here because it can't
         be serialized.
 
@@ -261,11 +286,11 @@ class PackagedFunction(object):
         else:
             to_run = func
 
-        for varname, modulename in self.global_modules.iteritems():
-            exec ('import %s as %s' % (modulename, varname))
-            to_run.func_globals[varname] = eval(varname)
-        for name, value in self.global_closure.iteritems():
-            to_run.func_globals[name] = value
+        for varname, modulename in self.global_modules.items():
+            exec('import %s as %s' % (modulename, varname))
+            to_run.__globals__[varname] = eval(varname)
+        for name, value in self.global_closure.items():
+            to_run.__globals__[name] = value
         for funcname in self.global_functions:
             to_run.func_globals[funcname] = eval(funcname)
         return to_run

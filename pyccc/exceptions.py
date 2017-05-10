@@ -11,6 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import print_function, unicode_literals, absolute_import, division
+from future import standard_library
+standard_library.install_aliases()
+from future.builtins import *
 
 
 class JobExceptionBase(Exception):
@@ -20,7 +24,30 @@ class JobExceptionBase(Exception):
 
 
 class ProgramFailure(Exception):
-    pass
+    def __init__(self, job, msg=None, **kwargs):
+        try:
+            self.stdout = job.stdout
+        except Exception as exc:
+            self.stdout = exc
+            stdout_line = 'No stdout returned.'
+        else:
+            stdout_line = 'STDOUT: ' + self.stdout
+
+        try:
+            self.stderr = job.stderr
+        except Exception as exc:
+            self.stderr = exc
+            stderr_line = 'No stderr returned.'
+        else:
+            stderr_line = 'STDERR: ' + self.stderr
+
+        if msg is None:
+            lines = ['The desired job could not be started in the current execution environment.',
+                     stdout_line,
+                     stderr_line]
+            msg = '\n'.join(lines)
+
+        super().__init__(msg, **kwargs)
 
 
 class TimeoutError(JobExceptionBase):

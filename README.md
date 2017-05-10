@@ -1,7 +1,7 @@
 # py-cloud-compute-cannon
 A high-level python interface for running computational jobs using a variety of distributed computing backends.
 
-[![PyPI version](https://badge.fury.io/py/pyccc.svg)](https://badge.fury.io/py/pyccc)
+[![PyPI version](https://badge.fury.io/py/pyccc.svg)](https://badge.fury.io/py/pyccc) [ ![Codeship Status for Autodesk/py-cloud-compute-cannon](https://app.codeship.com/projects/cfce5d40-17f0-0135-533b-7a1debe13560/status?branch=master)](https://app.codeship.com/projects/218766)
 ## Installation
 
 Normal installation:

@@ -11,6 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import print_function, unicode_literals, absolute_import, division
+from future import standard_library
+standard_library.install_aliases()
+from future.builtins import *
 
 from pyccc import PythonCall, PythonJob, Job
 
@@ -50,11 +54,10 @@ class EngineBase(object):
             image (str): name of the docker image to launch
             command (str): shell command to run
         """
-        if issubclass(command.__class__, PythonCall):
-            JobClass = PythonJob
+        if isinstance(command, PythonCall):
+            return PythonJob(self, image, command, **kwargs)
         else:
-            JobClass = Job
-        return JobClass(self, image, command, **kwargs)  # creates and submits the job
+            return Job(self, image, command, **kwargs)
 
     def submit(self, job):
         """

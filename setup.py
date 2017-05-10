@@ -2,7 +2,6 @@ import sys
 from setuptools import find_packages, setup
 import versioneer
 
-assert sys.version_info[:2] == (2, 7), "Sorry, this package requires Python 2.7."
 
 PACKAGE_NAME = 'pyccc'
 
@@ -12,8 +11,11 @@ Natural Language :: English
 Intended Audience :: Science/Research
 Intended Audience :: Developers
 License :: OSI Approved :: Apache Software License
+Programming Language :: Python :: 2
 Programming Language :: Python :: 2.7
-Programming Language :: Python :: 2 :: Only
+Programming Language :: Python :: 3
+Programming Language :: Python :: 3.5
+Programming Language :: Python :: 3.6
 Topic :: System :: Distributed Computing
 Operating System :: POSIX
 Operating System :: Unix

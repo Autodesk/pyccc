@@ -14,13 +14,16 @@
 """
 Source code inspections for sending python code to workers
 """
-
+from __future__ import print_function, unicode_literals, absolute_import, division
+from future import standard_library, builtins
+standard_library.install_aliases()
+from future.builtins import *
 
 import inspect
 import linecache
 import re
 import string
-import future_builtins as builtins
+from collections import namedtuple
 
 __author__ = 'aaronvirshup'
 
@@ -42,7 +45,7 @@ def get_global_vars(func):
     globalvars = dict(modules={},
                       functions={},
                       vars={})
-    for name, value in closure['global'].iteritems():
+    for name, value in closure['global'].items():
         if inspect.ismodule(value):  # TODO: deal FUNCTIONS from closure
             globalvars['modules'][name] = value.__name__
         elif inspect.isfunction(value):
@@ -102,6 +105,8 @@ def getsource(classorfunc):
         cls = classorfunc
         base_imports = {}
         for base in cls.__bases__:
+            if base.__name__ == 'object' and base.__module__ == 'builtins':  # don't import `object`
+                continue
             if base in base_imports:
                 continue
             if base.__module__ == '__main__':
@@ -113,7 +118,7 @@ def getsource(classorfunc):
             cls.__name__,
             ','.join([base.__name__ for base in cls.__bases__]),
             after_decl)
-        declaration = [impstring for c, impstring in base_imports.iteritems()
+        declaration = [impstring for c, impstring in base_imports.items()
                        if c.__module__ != '__builtin__']
         declaration.append(declstring)
 

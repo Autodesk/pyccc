@@ -11,9 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import print_function, unicode_literals, absolute_import, division
+from future import standard_library
+standard_library.install_aliases()
+from future.builtins import *
 
 import os
 import subprocess
+import locale
 
 from pyccc import utils as utils, files
 from . import EngineBase, status
@@ -24,6 +29,10 @@ class Subprocess(EngineBase):
     For now, don't return anything until job completes"""
 
     hostname = 'local'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.term_encoding = locale.getpreferredencoding()
 
     def get_status(self, job):
         if job.subproc.poll() is None:
@@ -52,7 +61,7 @@ class Subprocess(EngineBase):
         self._check_job(job)
         job.workingdir = utils.make_local_temp_dir()
         if job.inputs:
-            for filename, f in job.inputs.iteritems():
+            for filename, f in job.inputs.items():
                 f.put(os.path.join(job.workingdir, filename))
 
         job.subproc = subprocess.Popen(job.command,
@@ -60,7 +69,7 @@ class Subprocess(EngineBase):
                                        cwd=job.workingdir,
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE)
-        job.jobid = 'Subprocess %s' % job.subproc.pid
+        job.jobid = job.subproc.pid
         job._started = True
         return job.subproc.pid
 
@@ -78,9 +87,9 @@ class Subprocess(EngineBase):
             if os.path.islink(dir):
                 continue
             elif os.path.isdir(fname):
-                dirfiles = job._list_output_files(dir=abs_path)
+                dirfiles = self._list_output_files(job, dir=abs_path)
                 filenames.update({'%s/%s' % (fname, f): obj
-                                  for f, obj in dirfiles.iteritems()})
+                                  for f, obj in dirfiles.items()})
             else:
                 filenames[fname] = files.LocalFile(abs_path)
         return filenames
@@ -89,5 +98,5 @@ class Subprocess(EngineBase):
         strings = []
         #Todo - we'll need to buffer any streamed output, since stdout isn't seekable
         for fileobj in (job.subproc.stdout, job.subproc.stderr):
-            strings.append(fileobj.read())
+            strings.append(fileobj.read().decode(self.term_encoding))
         return strings

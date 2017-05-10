@@ -11,6 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import print_function, unicode_literals, absolute_import, division
+from future import standard_library
+standard_library.install_aliases()
+from future.builtins import *
+
+from . import status
 import sys
 
 from pyccc import status, utils
@@ -84,7 +90,7 @@ class FileBrowser(Tab):
         titles = []
         file_list = [ipy.Box()]
         ignores = set(ignore_ext)
-        for filename, fileobj in file_dict.iteritems():
+        for filename, fileobj in file_dict.items():
             ext = filename.split('.')[-1]
             if ext in ignores:
                 continue

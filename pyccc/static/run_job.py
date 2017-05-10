@@ -15,11 +15,18 @@
 """
 This is a script that drives the remote computation of a function or instance method.
 It's designed to use the pickled objects produced by the PythonJob class
+
+Note:
+    This script must be able to run in both Python 2.7 and 3.5+ *without any dependencies*
 """
-import sys
+from __future__ import print_function, unicode_literals, absolute_import, division
 import os
-import cPickle as cp
+import types
+import sys
+import pickle
 import traceback as tb
+
+PICKLE_PROTOCOL = 2  # required for 2/3 compatible pickle objects
 
 import source  # the dynamically created source file
 
@@ -35,12 +42,11 @@ def main():
 
         result = funcpkg.run(func)
 
-        serialize_output(result,
-                         separate_fields=funcpkg._separate_io_fields is not None)
+        serialize_output(result)
 
         if funcpkg.is_imethod:
-            with open('_object_state.pkl', 'w') as ofp:
-                cp.dump(funcpkg.obj, ofp, cp.HIGHEST_PROTOCOL)
+            with open('_object_state.pkl', 'wb') as ofp:
+                pickle.dump(funcpkg.obj, ofp, PICKLE_PROTOCOL)
 
     # Catch all exceptions and return them to the client
     except Exception as exc:
@@ -48,15 +54,8 @@ def main():
 
 
 def load_job():
-    with open('function.pkl', 'r') as pf:
-        funcpkg = unpickle_with_remap(pf)
-
-    if funcpkg._separate_io_fields:
-        inputs = {}
-        for field in funcpkg._separate_io_fields:
-            with open('inputs/%s.pkl' % field, 'r') as infile:
-                inputs[field] = cp.load(infile)
-        funcpkg.kwargs = inputs
+    with open('function.pkl', 'rb') as pf:
+        funcpkg = MappedUnpickler(pf).load()
 
     if hasattr(funcpkg, 'func_name'):
         func = getattr(source, funcpkg.func_name)
@@ -66,66 +65,55 @@ def load_job():
     return funcpkg, func
 
 
-def serialize_output(result, separate_fields=False):
-    if separate_fields:
-        if not os.path.isdir('outputs'):
-            os.mkdir('outputs')
-
-        if result is None: result = {}
-
-        for field, value in result.iteritems():
-            with open('outputs/%s.pkl' % field, 'w') as rp:
-                cp.dump(value, rp)
-
-        with open('outputfields.txt', 'w') as outf:
-            for field in result.iterkeys():
-                print >> outf, field
-    else:
-        with open('_function_return.pkl', 'w') as rp:
-            cp.dump(result, rp, cp.HIGHEST_PROTOCOL)
+def serialize_output(result):
+    with open('_function_return.pkl', 'wb') as rp:
+        pickle.dump(result, rp, pickle.HIGHEST_PROTOCOL)
 
 
 def capture_exceptions(exc):
     if len(sys.argv) > 1 and sys.argv[1] == '--debug':
         raise  # for debugging in a container
-    with open('exception.pkl', 'w') as excfile:
-        cp.dump(exc, excfile)
+    with open('exception.pkl', 'wb') as excfile:
+        pickle.dump(exc, excfile)
     with open('traceback.txt', 'w') as tbfile:
         tb.print_exc(file=tbfile)
 
 
-def unpickle_with_remap(fileobj):
-    """ This function remaps pickled classnames. It's specifically here to remap the
-    "PackagedFunction" class from pyccc to the __main__ module.
+class MappedUnpickler(pickle.Unpickler):
+    RENAMETABLE = {'pyccc.python': 'source',
+                   '__main__': 'source'}
 
-    References:
-        Based on https://wiki.python.org/moin/UsingPickle/RenamingModules
-    """
-    import pickle
+    def find_class(self, module, name):
+        """ This override is here to help pickle find the modules that classes are defined in.
 
-    try:
-        from cStringIO import StringIO
-    except ImportError:
-        from StringIO import StringIO
+        It does three things:
+         1) remaps the "PackagedFunction" class from pyccc to the `source.py` module.
+         2) Remaps any classes created in the client's '__main__' to the `source.py` module
+         3) Creates on-the-fly modules to store any other classes present in source.py
 
-    def mapname(name):
-        if name in RENAMETABLE:
-            return RENAMETABLE[name]
-        return name
+        References:
+                This is a modified version of the 2-only recipe from
+                https://wiki.python.org/moin/UsingPickle/RenamingModules.
+                It's been modified for 2/3 cross-compatibility    """
+        import pickle
 
-    def mapped_load_global(self):
-        module = mapname(self.readline()[:-1])
-        name = mapname(self.readline()[:-1])
-        klass = self.find_class(module, name)
-        self.append(klass)
+        modname = self.RENAMETABLE.get(module, module)
 
-    unpickler = pickle.Unpickler(fileobj)
-    unpickler.dispatch[pickle.GLOBAL] = mapped_load_global
-    return unpickler.load()
+        try:
+            # can't use ``super`` here (not 2/3 compatible)
+            klass = pickle.Unpickler.find_class(self, modname, name)
+
+        except ImportError:
+            if hasattr(source, name):
+                newmod = types.ModuleType(modname)
+                sys.modules[modname] = newmod
+                setattr(newmod, name, getattr(source, name))
+            klass = self.find_class(modname, name)
+
+        klass.__module__ = module
+        return klass
 
 
 if __name__ == '__main__':
     main()
-
-
 

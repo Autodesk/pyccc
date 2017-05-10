@@ -11,12 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-My standard utilities. Intended to be included in all projects
-Obviously everything included here needs to be in the standard library
-"""
+from __future__ import print_function, unicode_literals, absolute_import, division
+from future import standard_library
+standard_library.install_aliases()
+from future.builtins import *
+
 import sys
-from cStringIO import StringIO
+from io import StringIO
 from functools import wraps
 from uuid import uuid4
 import tempfile
@@ -28,6 +29,7 @@ import os
 GIST_URL = "https://gist.github.com/avirshup/5dd7d5638acf245b2b1f"
 RAW_GIST = 'https://gist.githubusercontent.com/avirshup/5dd7d5638acf245b2b1f/raw/'
 MY_PATH = os.path.abspath(__file__)
+
 
 def gist_diff():
     """Diff this file with the gist on github"""
@@ -43,8 +45,8 @@ def wget(url):
     """
     Download the page into a string
     """
-    import urllib2
-    request = urllib2.urlopen(url)
+    import urllib.request, urllib.error, urllib.parse
+    request = urllib.request.urlopen(url)
     ":type: urllib2.req"
     filestring = request.read()
     return filestring
@@ -55,6 +57,27 @@ def if_not_none(item, default):
         return default
     else:
         return item
+
+
+def autodecode(b):
+    """ Try to decode ``bytes`` to text - try default encoding first, otherwise try to autodetect
+
+    Args:
+        b (bytes): byte string
+
+    Returns:
+        str: decoded text string
+    """
+    import warnings
+    import chardet
+
+    try:
+        return b.decode()
+    except UnicodeError:
+        result = chardet.detect(b)
+        if result['confidence'] < 0.95:
+            warnings.warn('autodecode failed with utf-8; guessing %s' % result['encoding'])
+        return result.decode(result['encoding'])
 
 
 def can_use_widgets():
@@ -87,7 +110,7 @@ class PipedFile(object):
     >>>     print open(pipepath,'r').read()
     """
     def __init__(self, fileobj, filename='pipe'):
-        if type(fileobj) in (unicode,str):
+        if type(fileobj) in (str, str):
             self.fileobj = StringIO(fileobj)
         else:
             self.fileobj = fileobj
@@ -119,7 +142,7 @@ def remove_directories(list_of_paths):
     found_dirs = set('/')
     for path in list_of_paths:
         dirs = path.strip().split('/')
-        for i in xrange(2,len(dirs)):
+        for i in range(2,len(dirs)):
             found_dirs.add( '/'.join(dirs[:i]) )
 
     paths = [ path for path in list_of_paths if
@@ -316,7 +339,7 @@ class DocInherit(object):
 
     def use_parent_doc(self, func, source):
         if source is None:
-            raise NameError, ("Can't find '%s' in parents"%self.name)
+            raise NameError("Can't find '%s' in parents"%self.name)
         func.__doc__ = source.__doc__
         return func
 

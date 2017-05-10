@@ -11,6 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import print_function, unicode_literals, absolute_import, division
+from future import standard_library
+standard_library.install_aliases()
+from future.builtins import *
+
 import base64
 
 import requests
@@ -51,7 +56,7 @@ class JsonRpcProxy(object):
             self._docstrings[fname] = '\n'.join(dslist)
 
     def __dir__(self):
-        return self._funcnames.keys() + self.__dict__.keys()
+        return list(self._funcnames.keys()) + list(self.__dict__.keys())
 
     def __getattr__(self, attrname):
         host = self.host
@@ -70,10 +75,10 @@ class JsonRpcProxy(object):
             # TODO: also need to account for non-local files (like URLs, files on the web, etc)
             if kwargs.get('inputs', None) is not None:
                 inputs = []
-                for key, value in kwargs['inputs'].iteritems():
+                for key, value in kwargs['inputs'].items():
                     if hasattr(value, 'read'):
-                        value = value.read()
-                    try:
+                        value = value.read('rb')
+                    try:  # TODO: this part needs to be completely redone
                         encoded = value.encode('utf8')
                     except UnicodeDecodeError:
                         encoded = base64.b64encode(value)
@@ -93,16 +98,16 @@ class JsonRpcProxy(object):
             if files:
                 # Add the JSON-RPC message to the multipart message
                 fileParts = {'jsonrpc': ('jsonrpc', json.dumps(jsonRpcRequest))}
-                for key, value in files.iteritems():
+                for key, value in files.items():
                     fileParts[key] = (key, value, 'application/octet-stream')
                 response = requests.post(host, files=fileParts)
             else:
                 headers = {'Content-Type': 'application/json-rpc'}
 
                 if self.debug:
-                    print 'POST to %s' % host
-                    print 'headers:', headers
-                    print 'data:', json.dumps(jsonRpcRequest)
+                    print('POST to %s' % host)
+                    print('headers:', headers)
+                    print('data:', json.dumps(jsonRpcRequest))
 
                 response = requests.post(host,
                                          headers=headers,
@@ -114,17 +119,17 @@ class JsonRpcProxy(object):
                 raise ValueError('Non-json response (Status %s): %s' %
                                  (response.status_code, response.reason), response)
             else:
-                if self.debug: print 'Response:',responseJson
+                if self.debug: print('Response:',responseJson)
 
             if 'error' in responseJson:
                 raise ValueError(responseJson['error'])
 
             if self.debug:
                 try:
-                    print 'link:', \
-                        'http://' + host.split('/')[2] + '/' + responseJson['result']['jobId']
+                    print('link:', \
+                        'http://' + host.split('/')[2] + '/' + responseJson['result']['jobId'])
                 except:
-                    print 'failed to generate link to job ...'
+                    print('failed to generate link to job ...')
             return responseJson['result']
 
         jsonRpcFunction.__doc__ = self._docstrings[method]
