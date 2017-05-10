@@ -15,5 +15,5 @@ test3_6:
 deploy:
   build:
     dockerfile: Dockerfile.python36
-    working_dir: /opt/py-cloud-compute-cannon/pyccc
+  working_dir: /opt/py-cloud-compute-cannon
   encrypted_env_file: env.crypt
