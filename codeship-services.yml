@@ -1,19 +1,21 @@
 test2_7:
   build:
     dockerfile: Dockerfile.python27
-  #volumes:
-  #  - /var/run/docker.sock:/var/run/docker.sock
   add_docker: true
-  #encrypted_env_file: tokens.crypt
   working_dir: /opt/py-cloud-compute-cannon/pyccc/tests
+  cached: true
+
 
 test3_6:
   build:
     dockerfile: Dockerfile.python36
-  #volumes:
-  #  - /var/run/docker.sock:/var/run/docker.sock
   add_docker: true
-  #encrypted_env_file: tokens.crypt
   working_dir: /opt/py-cloud-compute-cannon/pyccc/tests
-  encrypted_env_file: env.crypt
+  cached: true
 
+
+deploy:
+  build:
+    dockerfile: Dockerfile.python36
+    working_dir: /opt/py-cloud-compute-cannon/pyccc
+  encrypted_env_file: env.crypt
