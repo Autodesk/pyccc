@@ -15,5 +15,9 @@ test3_6:
   add_docker: true
   #encrypted_env_file: tokens.crypt
   working_dir: /opt/py-cloud-compute-cannon/pyccc/tests
-  encrypted_env_file: env.crypt
 
+deploy:
+  build:
+    dockerfile: Dockerfile.python36
+    working_dir: /opt/py-cloud-compute-cannon/pyccc
+    encrypted_env_file: env.crypt
