@@ -6,4 +6,3 @@ include README.md
 recursive-include pyccc/static *.*
 recursive-include pyccc/tests *.*
 global-exclude *.py[cod] __pycache__ *~ *.bak
-
