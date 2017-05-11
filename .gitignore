@@ -8,3 +8,7 @@
 /pyccc.egg-info
 _docker_make_tmp
 env.private
+codeship.aes
+.cache
+__pycache__
+
