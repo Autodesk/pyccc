@@ -1,3 +1,10 @@
 #!/usr/bin/env bash
 
-python setup.py check sdist upload --password ${PYPI_PASSWORD} --username ${PYPI_USER}
+cat > $HOME/.pypirc << EOF
+[server-login]
+username=${PYPI_USER}
+password=${PYPI_PASSWORD}
+
+EOF
+
+python setup.py check sdist upload
