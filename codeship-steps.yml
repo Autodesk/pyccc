@@ -8,7 +8,7 @@
 
 
 - name: deploy
-  service: test3_6
+  service: deploy
   type: serial
   steps:
      - command: ./scripts/check_pyversion.sh
