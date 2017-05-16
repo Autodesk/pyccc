@@ -7,7 +7,7 @@ from .engine_fixtures import *
 
 REMOTE_PYTHON_VERSIONS = {2: '2.7', 3: '3.6'}
 PYVERSION = REMOTE_PYTHON_VERSIONS[sys.version_info.major]
-
+PYIMAGE = 'python:%s-slim' % PYVERSION
 
 
 ########################
@@ -67,7 +67,7 @@ def test_sleep_raises_jobstillrunning(fixture, request):
 def test_python_function(fixture, request):
     engine = request.getfuncargvalue(fixture)
     pycall = pyccc.PythonCall(_testfun, 5)
-    job = engine.launch('python:%s-slim'%PYVERSION, pycall, interpreter=PYVERSION)
+    job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
     job.wait()
     assert job.result == 6
 
@@ -77,7 +77,7 @@ def test_python_instance_method(fixture, request):
     engine = request.getfuncargvalue(fixture)
     obj = _TestCls()
     pycall = pyccc.PythonCall(obj.increment, by=2)
-    job = engine.launch('python:%s-slim' % PYVERSION, pycall, interpreter=PYVERSION)
+    job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
     job.wait()
 
     assert job.result == 2
@@ -88,7 +88,7 @@ def test_python_instance_method(fixture, request):
 def test_python_reraises_exception(fixture, request):
     engine = request.getfuncargvalue(fixture)
     pycall = pyccc.PythonCall(_raise_valueerror, 'this is my message')
-    job = engine.launch('python:%s-slim' % PYVERSION, pycall, interpreter=PYVERSION)
+    job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
     job.wait()
 
     with pytest.raises(ValueError):
@@ -100,7 +100,7 @@ def test_builtin_imethod(fixture, request):
     engine = request.getfuncargvalue(fixture)
     mylist = [3, 2, 1]
     fn = pyccc.PythonCall(mylist.sort)
-    job = engine.launch(image='python:2.7-slim', command=fn, interpreter=PYVERSION)
+    job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
     job.wait()
 
     assert job.result is None  # since sort doesn't return anything
@@ -112,7 +112,7 @@ def test_builtin_function(fixture, request):
     engine = request.getfuncargvalue(fixture)
     mylist = [3, 2, 1]
     fn = pyccc.PythonCall(sorted, mylist)
-    job = engine.launch(image='python:2.7-slim', command=fn, interpreter=PYVERSION)
+    job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
     job.wait()
 
     assert job.result == [1,2,3]

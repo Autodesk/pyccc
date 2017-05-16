@@ -42,6 +42,14 @@ PYTHON_JOB_FILE = LocalFile('%s/static/run_job.py' % pyccc.PACKAGE_PATH)
 DEFAULT_INTERPRETER = 'python%s.%s' % sys.version_info[:2]
 PICKLE_PROTOCOL = 2  # required for 2/3 compatibile pickle objects
 
+if sys.version_info.major == 2:
+    PYVERSION = 2
+    import __builtin__ as BUILTINS
+else:
+    assert sys.version_info.major == 3
+    PYVERSION = 3
+    import builtins as BUILTINS
+
 
 @exports
 class PythonCall(object):
@@ -51,12 +59,14 @@ class PythonCall(object):
         self.kwargs = kwargs
 
         try:
-            temp = function.__self__.__class__
+            cls = function.__self__.__class__
         except AttributeError:
             self.is_instancemethod = False
         else:
-            self.is_instancemethod = True
-
+            if function.__self__ == BUILTINS or function.__self__ is None:
+                self.is_instancemethod = False
+            else:
+                self.is_instancemethod = True
 
 @exports
 class PythonJob(job.Job):
@@ -111,6 +121,7 @@ class PythonJob(job.Job):
         python_files['function.pkl'] = pyccc.BytesContainer(
                 pickle.dumps(remote_function, protocol=PICKLE_PROTOCOL),
                 name='function.pkl')
+        self._remote_function = remote_function
 
         sourcefile = StringContainer(self._get_source(),
                                      name='source.py')
@@ -238,7 +249,7 @@ class PackagedFunction(native.object):
     """
     def __init__(self, function_call):
         func = function_call.function
-        self.is_imethod = getattr(func, '__self__', None) is not None
+        self.is_imethod = function_call.is_instancemethod
         if self.is_imethod:
             self.obj = func.__self__
             self.imethod_name = func.__name__
