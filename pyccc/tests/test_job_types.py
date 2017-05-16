@@ -1,28 +1,13 @@
-from itertools import product
-
 import sys
 import pytest
 import pyccc
+from .engine_fixtures import *
 
 """Basic test battery for regular and python jobs on all underlying engines"""
 
 REMOTE_PYTHON_VERSIONS = {2: '2.7', 3: '3.6'}
 PYVERSION = REMOTE_PYTHON_VERSIONS[sys.version_info.major]
 
-fixture_types = {}
-
-
-
-def typedfixture(*types, **kwargs):
-    """This is a decorator that lets us associate fixtures with one or more arbitrary types.
-    This makes it easy, later, to run the same test on all fixtures of a given type"""
-
-    def fixture_wrapper(func):
-        for t in types:
-            fixture_types.setdefault(t, []).append(func.__name__)
-        return pytest.fixture(**kwargs)(func)
-
-    return fixture_wrapper
 
 
 ########################
@@ -44,27 +29,6 @@ class _TestCls(object):
 def _raise_valueerror(msg):
     raise ValueError(msg)
 
-
-###################
-# Fixtures        #
-###################
-
-@typedfixture('engine')
-def subprocess_engine():
-    return pyccc.Subprocess()
-
-
-@typedfixture('engine')
-def public_ccc_engine():
-    if not pytest.config.getoption("--testccc"):
-        pytest.skip("need --testccc option to run")
-    else:
-        return pyccc.CloudComputeCannon('cloudcomputecannon.bionano.autodesk.com:9000')
-
-
-@typedfixture('engine')
-def local_docker_engine():
-    return pyccc.Docker()
 
 
 ###################
@@ -113,7 +77,7 @@ def test_python_instance_method(fixture, request):
     engine = request.getfuncargvalue(fixture)
     obj = _TestCls()
     pycall = pyccc.PythonCall(obj.increment, by=2)
-    job = engine.launch('python:%s-slim'%PYVERSION, pycall, interpreter=PYVERSION)
+    job = engine.launch('python:%s-slim' % PYVERSION, pycall, interpreter=PYVERSION)
     job.wait()
 
     assert job.result == 2
@@ -124,9 +88,34 @@ def test_python_instance_method(fixture, request):
 def test_python_reraises_exception(fixture, request):
     engine = request.getfuncargvalue(fixture)
     pycall = pyccc.PythonCall(_raise_valueerror, 'this is my message')
-    job = engine.launch('python:%s-slim'%PYVERSION, pycall, interpreter=PYVERSION)
+    job = engine.launch('python:%s-slim' % PYVERSION, pycall, interpreter=PYVERSION)
     job.wait()
 
     with pytest.raises(ValueError):
         job.result
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_builtin_imethod(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+    mylist = [3, 2, 1]
+    fn = pyccc.PythonCall(mylist.sort)
+    job = engine.launch(image='python:2.7-slim', command=fn, interpreter=PYVERSION)
+    job.wait()
+
+    assert job.result is None  # since sort doesn't return anything
+    assert job.updated_object == [1, 2, 3]
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_builtin_function(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+    mylist = [3, 2, 1]
+    fn = pyccc.PythonCall(sorted, mylist)
+    job = engine.launch(image='python:2.7-slim', command=fn, interpreter=PYVERSION)
+    job.wait()
+
+    assert job.result == [1,2,3]
+
+
 

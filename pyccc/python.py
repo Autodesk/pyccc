@@ -238,7 +238,7 @@ class PackagedFunction(native.object):
     """
     def __init__(self, function_call):
         func = function_call.function
-        self.is_imethod = hasattr(func, '__self__')
+        self.is_imethod = getattr(func, '__self__', None) is not None
         if self.is_imethod:
             self.obj = func.__self__
             self.imethod_name = func.__name__

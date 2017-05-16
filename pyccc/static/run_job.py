@@ -34,6 +34,14 @@ import source  # the dynamically created source file
 RENAMETABLE = {'pyccc.python': 'source',
                '__main__': 'source'}
 
+if sys.version_info.major == 2:
+    PYVERSION = 2
+    import __builtin__ as BUILTINS
+else:
+    assert sys.version_info.major == 3
+    PYVERSION = 3
+    import builtins as BUILTINS
+
 
 def main():
     os.environ['IS_PYCCC_JOB'] = '1'
@@ -58,7 +66,10 @@ def load_job():
         funcpkg = MappedUnpickler(pf).load()
 
     if hasattr(funcpkg, 'func_name'):
-        func = getattr(source, funcpkg.func_name)
+        try:
+            func = getattr(source, funcpkg.func_name)
+        except AttributeError:
+            func = getattr(BUILTINS, funcpkg.func_name)
     else:
         func = None
 
@@ -103,15 +114,22 @@ class MappedUnpickler(pickle.Unpickler):
             # can't use ``super`` here (not 2/3 compatible)
             klass = pickle.Unpickler.find_class(self, modname, name)
 
-        except ImportError:
-            if hasattr(source, name):
-                newmod = types.ModuleType(modname)
-                sys.modules[modname] = newmod
-                setattr(newmod, name, getattr(source, name))
-            klass = self.find_class(modname, name)
-
-        klass.__module__ = module
+        except (ImportError, RuntimeError):
+            definition = getattr(source, name)
+            newmod = _makemod(modname)
+            sys.modules[modname] = newmod
+            setattr(newmod, name, definition)
+            klass = pickle.Unpickler.find_class(self, newmod.__name__, name)
+            klass.__module__ = module
         return klass
+
+
+def _makemod(name):
+    fields = name.split('.')
+    for i in range(0, len(fields)):
+        tempname = str('.'.join(fields[0:i]))
+        sys.modules[tempname] = types.ModuleType(tempname)
+    return sys.modules[tempname]
 
 
 if __name__ == '__main__':

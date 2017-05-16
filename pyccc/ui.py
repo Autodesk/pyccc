@@ -125,7 +125,10 @@ class FileView(Box):
             self.download_button.on_click(self.handle_download_click)
         # if it's file-like, get the _contents
         elif hasattr(fileobj, 'read'):
-            self._string = fileobj.read()
+            try:
+                self._string = fileobj.read()
+            except UnicodeDecodeError:
+                self._string = '[NOT SHOWN - UNABLE TO DECODE FILE]'
             self.render_string()
         # Just display a string
         else:
