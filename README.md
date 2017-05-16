@@ -5,6 +5,8 @@ A high-level python interface for running computational jobs using a variety of 
 ## Installation
 
 Normal installation:
+`pyccc` works with Python 2.6 and 3.5+. You'll probably want a local version of [docker](https://www.docker.com/get-docker) running.
+
 ```shell
 pip install pyccc
 ```

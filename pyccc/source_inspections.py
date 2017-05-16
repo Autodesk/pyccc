@@ -15,6 +15,7 @@
 Source code inspections for sending python code to workers
 """
 from __future__ import print_function, unicode_literals, absolute_import, division
+
 from future import standard_library, builtins
 standard_library.install_aliases()
 from future.builtins import *
@@ -23,7 +24,6 @@ import inspect
 import linecache
 import re
 import string
-from collections import namedtuple
 
 __author__ = 'aaronvirshup'
 
@@ -48,7 +48,7 @@ def get_global_vars(func):
     for name, value in closure['global'].items():
         if inspect.ismodule(value):  # TODO: deal FUNCTIONS from closure
             globalvars['modules'][name] = value.__name__
-        elif inspect.isfunction(value):
+        elif inspect.isfunction(value) or inspect.ismethod(value):
             globalvars['functions'][name] = value
         else:
             globalvars['vars'][name] = value
@@ -69,6 +69,9 @@ def getsource(classorfunc):
     Returns:
         str: source code (without any decorators)
     """
+    if _isbuiltin(classorfunc):
+        return ''
+
     try:
         source = inspect.getsource(classorfunc)
     except TypeError:  # raised if defined in __main__ - use fallback to get the source instead
@@ -195,13 +198,18 @@ def getclosurevars(func):
     if inspect.ismethod(func):
         func = func.__func__
 
-    if not inspect.isfunction(func):
+    elif not inspect.isroutine(func):
         raise TypeError("'{!r}' is not a Python function".format(func))
 
-    code = func.__code__
+    # AMVMOD: deal with python 2 builtins that don't define these
+    code = getattr(func, '__code__', None)
+    closure = getattr(func, '__closure__', None)
+    co_names = getattr(code, 'co_names', ())
+    glb = getattr(func, '__globals__', {})
+
     # Nonlocal references are named in co_freevars and resolved
     # by looking them up in __closure__ by positional index
-    if func.__closure__ is None:
+    if closure is None:
         nonlocal_vars = {}
     else:
         nonlocal_vars = {var: cell.cell_contents
@@ -209,14 +217,14 @@ def getclosurevars(func):
 
     # Global and builtin references are named in co_names and resolved
     # by looking them up in __globals__ or __builtins__
-    global_ns = func.__globals__
+    global_ns = glb
     builtin_ns = global_ns.get("__builtins__", builtins.__dict__)
     if inspect.ismodule(builtin_ns):
         builtin_ns = builtin_ns.__dict__
     global_vars = {}
     builtin_vars = {}
     unbound_names = set()
-    for name in code.co_names:
+    for name in co_names:
         if name in ("None", "True", "False"):
             # Because these used to be builtins instead of keywords, they
             # may still show up as name references. We ignore them.
@@ -233,3 +241,12 @@ def getclosurevars(func):
             'global': global_vars,
             'builtin': builtin_vars,
             'unbound': unbound_names}
+
+
+def _isbuiltin(obj):
+    if inspect.isbuiltin(obj):
+        return True
+    elif obj.__module__ in ('builtins', '__builtin__'):
+        return True
+    else:
+        return False
