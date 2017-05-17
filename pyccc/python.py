@@ -292,11 +292,11 @@ class PackagedFunction(native.object):
             to_run = func
 
         for varname, modulename in self.global_modules.items():
-            to_run.func_globals[varname] = __import__(modulename)
-        for name, value in self.global_closure.items():
-            to_run.__globals__[name] = value
-        for funcname in self.global_functions:
-            to_run.func_globals[funcname] = eval(funcname)
+            to_run.__globals__[varname] = __import__(modulename)
+        if self.global_closure:
+            to_run.__globals__.update(self.global_closure)
+        if self.global_functions:
+            to_run.__globals__.update(self.global_functions)
         return to_run
 
 PACKAGEDFUNCTIONSOURCE = '\n' + src.getsource(PackagedFunction)

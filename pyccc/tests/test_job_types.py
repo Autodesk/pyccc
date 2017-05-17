@@ -126,11 +126,20 @@ def test_function_with_closure_mod(fixture, request):
 
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
-def test_function_with_closure_mod(fixture, request):
+def test_function_with_renamed_closure_mod(fixture, request):
+    if sys.version_info[:2] == (3, 6):
+        pytest.xfail("This is either impossible or a bug with Python 3.6")
+
     result = _runcall(fixture, request, function_tests.fn_with_renamed_mod)
     assert len(result) == 10
     for x in result:
         assert 0.0 <= x <= 1.0
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_function_with_renamed_module_var(fixture, request):
+    result = _runcall(fixture, request, function_tests.fn_with_renamed_attr, 'a')
+    assert not result
 
 
 def _runcall(fixture, request, function, *args, **kwargs):

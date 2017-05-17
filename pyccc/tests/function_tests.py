@@ -2,6 +2,8 @@
 import collections
 from itertools import chain
 import random as rnd
+from inspect import ismodule as module_check
+
 
 YVAR = 3
 
@@ -29,6 +31,11 @@ def fn_withmod(d):
 # includes a renamed global module reference
 def fn_with_renamed_mod():
     return [rnd.random() for i in range(10)]
+
+
+# includes a renamed module attribute
+def fn_with_renamed_attr(a):
+    return module_check(a)
 
 
 class Cls(object):
