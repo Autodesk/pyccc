@@ -262,13 +262,7 @@ class PackagedFunction(native.object):
         self.global_closure = globalvars['vars']
         self.global_modules = globalvars['modules']
         self.global_functions = globalvars['functions']
-
-    def __getstate__(self):
-        """ Strip unpickleable function references before pickling
-        """
-        state = self.__dict__.copy()
-        state['global_functions'] = {key: None for key in state['global_functions']}
-        return state
+        print(self.global_modules)
 
     def run(self, func=None):
         """
@@ -298,8 +292,7 @@ class PackagedFunction(native.object):
             to_run = func
 
         for varname, modulename in self.global_modules.items():
-            exec('import %s as %s' % (modulename, varname))
-            to_run.__globals__[varname] = eval(varname)
+            to_run.func_globals[varname] = __import__(modulename)
         for name, value in self.global_closure.items():
             to_run.__globals__[name] = value
         for funcname in self.global_functions:

@@ -2,6 +2,7 @@ import sys
 import pytest
 import pyccc
 from .engine_fixtures import *
+from . import function_tests
 
 """Basic test battery for regular and python jobs on all underlying engines"""
 
@@ -13,17 +14,7 @@ PYIMAGE = 'python:%s-slim' % PYVERSION
 ########################
 # Python test objects  #
 ########################
-def _testfun(x):
-    return x+1
 
-
-class _TestCls(object):
-    def __init__(self):
-        self.x = 0
-
-    def increment(self, by=1):
-        self.x += by
-        return self.x
 
 
 def _raise_valueerror(msg):
@@ -66,7 +57,7 @@ def test_sleep_raises_jobstillrunning(fixture, request):
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_python_function(fixture, request):
     engine = request.getfuncargvalue(fixture)
-    pycall = pyccc.PythonCall(_testfun, 5)
+    pycall = pyccc.PythonCall(function_tests.fn, 5)
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
     job.wait()
     assert job.result == 6
@@ -75,7 +66,7 @@ def test_python_function(fixture, request):
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_python_instance_method(fixture, request):
     engine = request.getfuncargvalue(fixture)
-    obj = _TestCls()
+    obj = function_tests.Cls()
     pycall = pyccc.PythonCall(obj.increment, by=2)
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
     job.wait()
@@ -109,13 +100,42 @@ def test_builtin_imethod(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_builtin_function(fixture, request):
-    engine = request.getfuncargvalue(fixture)
     mylist = [3, 2, 1]
-    fn = pyccc.PythonCall(sorted, mylist)
+    result = _runcall(fixture, request, sorted, mylist)
+    assert result == [1,2,3]
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_function_with_closure_var(fixture, request):
+    result = _runcall(fixture, request, function_tests.fn_withvar, 5.0)
+    assert result == 8.0
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_function_with_closure_func(fixture, request):
+    result = _runcall(fixture, request, function_tests.fn_withfunc, [1, 2], [3, 4])
+    assert result == [1,2,3,4]
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_function_with_closure_mod(fixture, request):
+    od = _runcall(fixture, request, function_tests.fn_withmod, [('a', 'b'), ('c', 'd')])
+    assert od.__class__.__name__ == 'OrderedDict'
+    assert list(od.keys()) == ['a', 'c']
+    assert list(od.values()) == ['b', 'd']
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_function_with_closure_mod(fixture, request):
+    result = _runcall(fixture, request, function_tests.fn_with_renamed_mod)
+    assert len(result) == 10
+    for x in result:
+        assert 0.0 <= x <= 1.0
+
+
+def _runcall(fixture, request, function, *args, **kwargs):
+    engine = request.getfuncargvalue(fixture)
+    fn = pyccc.PythonCall(function, *args, **kwargs)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
     job.wait()
-
-    assert job.result == [1,2,3]
-
-
-
+    return job.result
