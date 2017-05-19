@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+import os
 import sys
 import pickle
 import pytest
@@ -30,10 +31,6 @@ LINES_CONTENT = ['abcd\n',
                  '1234']
 
 
-def _gen_tempfile_path():
-    return '/tmp/pyccc_test_%s.txt' % uuid.uuid4()
-
-
 @typedfixture('container')
 def bytescontainer():
     return pyccc.files.BytesContainer(BYTES_CONTENT)
@@ -45,18 +42,18 @@ def stringcontainer():
 
 
 @typedfixture('container')
-def localfile_from_bytes(bytescontainer):
-    return bytescontainer.put(_gen_tempfile_path())
+def localfile_from_bytes(bytescontainer, tmpdir):
+    return bytescontainer.put(os.path.join(str(tmpdir), 'bytesfile'))
 
 
 @typedfixture('container')
-def localfile_from_string(stringcontainer):
-    return stringcontainer.put(_gen_tempfile_path())
+def localfile_from_string(stringcontainer, tmpdir):
+    return stringcontainer.put(os.path.join(str(tmpdir), 'strfile'))
 
 
 @typedfixture('container')
-def localfile_in_memory(bytescontainer):
-    localfile = bytescontainer.put(_gen_tempfile_path())
+def localfile_in_memory(bytescontainer, tmpdir):
+    localfile = bytescontainer.put(os.path.join(str(tmpdir), 'bytefile'))
     return pyccc.FileContainer(localfile.localpath)
 
 
