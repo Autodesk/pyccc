@@ -16,10 +16,15 @@ from future import standard_library
 standard_library.install_aliases()
 from future.builtins import *
 
+import sys
 import os
 import tempfile
 
 CACHEDIR = '/tmp/pyccc_file_cache/'
+
+ENCODING = sys.getdefaultencoding()
+if ENCODING == 'ascii':
+    ENCODING = 'utf-8'
 
 
 def get_tempfile():

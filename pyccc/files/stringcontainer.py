@@ -11,43 +11,36 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import print_function, unicode_literals, absolute_import, division
+from __future__ import print_function, absolute_import, division
 from future import standard_library
 standard_library.install_aliases()
 from future.builtins import *
 
 import sys
 import io
+from . import FileReferenceBase, ENCODING
 
-from . import FileReferenceBase, BytesContainer
-
+PYVERSION = sys.version_info.major
 
 class StringContainer(FileReferenceBase):
     """ In-memory file stored as a text string
 
     Args:
-        contents (str): contents of the file
+        contents (str OR bytes): contents of the file
         name (str): descriptive name for the container (highly optional)
+        encoding (str): default encoding (for both encoding strings and decoding bytes). If
+           not specified, default system encoding is used (usually utf-8)
 
     Note:
-        For backwards compatibility, if ``contents`` is a byte string (``str`` in python 2,
-        ``bytes`` in python 3), this will produce a BytesContainer object
+        This handles both unicode (known as `unicode` in py2 and `str` in py3) and raw bytestrings
+        (`str` in py2 and `bytes` in py3).
     """
-
-    def __new__(cls, contents, **kwargs):
-        """ If a user calls this with a :class:`bytes` object, instantiate a BytesContainer
-        instead of a StringContainer. This is for the convenience of python 2 API users.
-        """
-        if isinstance(contents, str):
-            return super().__new__(cls)
-        else:
-            return BytesContainer(contents, **kwargs)
-
-    def __init__(self, contents, name='string'):
+    def __init__(self, contents, name='string', encoding=ENCODING):
         self.source = name
         self.sourcetype = 'python'
         self.localpath = None
         self._contents = contents
+        self.encoding = encoding
 
     def open(self, mode='r', encoding=None):
         """Return file-like object
@@ -62,12 +55,32 @@ class StringContainer(FileReferenceBase):
         access_type = self._get_access_type(mode)
 
         if encoding is None:
-            encoding = sys.getdefaultencoding()
+            encoding = self.encoding
 
+        # here, we face the task of returning the correct data type
         if access_type == 'b':
-            return io.BytesIO(self._contents.encode(encoding))
+            if not self._isbytes:
+                content = self._contents.encode(encoding)  # unicode in, bytes out
+            else:
+                content = self._contents  # bytes in, bytes out
+            return io.BytesIO(content)
         else:
-            return io.StringIO(self._contents)
+            assert access_type == 't'
+            if PYVERSION == 2 and self._isbytes:
+                return io.BytesIO(self._contents)  # bytes in, bytes out (python 2 only)
+            elif self._isbytes:
+                content = self._contents.decode(encoding)  # bytes in, unicode out
+            else:
+                content = self._contents  # unicode in, unicode out
+            return io.StringIO(content)
+
+    @property
+    def _isbytes(self):
+        if PYVERSION == 2:
+            return not isinstance(self._contents, unicode)
+        else:
+            assert PYVERSION >= 3
+            return isinstance(self._contents, bytes)
 
     def put(self, filename, encoding=None):
         """Write the file to the given path
@@ -81,9 +94,16 @@ class StringContainer(FileReferenceBase):
         """
         from . import LocalFile
 
-        with self.open() as infile, open(filename, 'w', encoding=encoding) as outfile:
-            for line in infile:
-                outfile.write(line)
+        if encoding is None:
+            encoding = self.encoding
+
+        if self._isbytes:
+            kwargs = {'mode': 'wb'}
+        else:
+            kwargs = {'mode': 'w', 'encoding': encoding}
+
+        with open(filename, **kwargs) as outfile:
+            outfile.write(self._contents)
 
         return LocalFile(filename, encoded_with=encoding)
 

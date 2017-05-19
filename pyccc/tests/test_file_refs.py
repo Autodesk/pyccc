@@ -1,4 +1,6 @@
 # -*- coding: UTF-8 -*-
+import sys
+import pickle
 import pytest
 import uuid
 
@@ -6,6 +8,10 @@ import pyccc
 
 fixture_types = {}
 
+PYVERSION = sys.version_info.major
+
+if PYVERSION >= 3:
+    unicode = str  # we'll use "unicode" and "bytes" just to be completely clear
 
 def typedfixture(*types, **kwargs):
     """This is a decorator that lets us associate fixtures with one or more arbitrary types.
@@ -69,3 +75,46 @@ def test_containers_open_filelike_object(fixture, request):
     assert ctr.open('r').read() == STRING_CONTENT
     assert ctr.open('rb').read() == BYTES_CONTENT
 
+
+def test_stringcontainer_handles_unicode():
+    angstrom = u'Å'
+    s1 = pyccc.files.StringContainer(angstrom)
+
+    readval = s1.read()
+    assert readval == angstrom
+    assert isinstance(readval, unicode)
+
+    readbin = s1.read(mode='rb')
+    assert isinstance(readbin, bytes)
+    assert readbin.decode(pyccc.files.ENCODING) == readval
+    assert readval.encode(pyccc.files.ENCODING) == readbin
+
+
+@pytest.mark.parametrize('encoding', 'latin-1 utf-8 utf-7 utf-32 utf_16_be mac_roman'.split())
+def test_stringcontainer_handles_bytes(encoding):
+    angstrom = u'Å'
+    angstrom_bytes = angstrom.encode(encoding)
+    assert isinstance(angstrom_bytes, bytes)  # just to be clear
+
+    s1 = pyccc.files.StringContainer(angstrom_bytes, encoding=encoding)
+
+    readval = s1.read()
+    if PYVERSION == 2:
+        assert isinstance(readval, bytes)
+        assert readval == angstrom_bytes
+        assert readval.decode(encoding) == angstrom
+    else:
+        assert PYVERSION >= 3
+        assert readval == angstrom
+        assert isinstance(readval, unicode)
+
+    readbin = s1.read(mode='rb')
+    assert isinstance(readbin, bytes)
+    assert readbin.decode(encoding) == angstrom
+
+
+@pytest.mark.parametrize('fixture', fixture_types['container'])
+def test_containers_are_pickleable(fixture, request):
+    ctr = request.getfuncargvalue(fixture)
+    newctr = pickle.loads(pickle.dumps(ctr))
+    assert newctr.read() == ctr.read()
