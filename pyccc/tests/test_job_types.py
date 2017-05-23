@@ -34,6 +34,28 @@ def test_hello_world(fixture, request):
 
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_job_status(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+    job = engine.launch('alpine', 'sleep 3', submit=False)
+    assert job.status.lower() == 'unsubmitted'
+    job.submit()
+    assert job.status.lower() in ('queued', 'running', 'downloading')
+    job.wait()
+    assert job.status.lower() == 'finished'
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_file_glob(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+    job = engine.launch('alpine', 'touch a.txt b c d.txt e.gif')
+    job.wait()
+
+    assert set(job.get_output().keys()) <= set('a.txt b c d.txt e.gif'.split())
+    assert set(job.glob_output('*.txt')) == set('a.txt d.txt'.split())
+
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_input_ouput_files(fixture, request):
     engine = request.getfuncargvalue(fixture)
     job = engine.launch(image='alpine',

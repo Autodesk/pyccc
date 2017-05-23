@@ -20,6 +20,8 @@ standard_library.install_aliases()
 from future.builtins import *
 from past.builtins import basestring
 
+import fnmatch
+
 import pyccc
 from pyccc import files, status
 from pyccc.utils import *
@@ -229,6 +231,13 @@ class Job(object):
         if not self._finished: self._finish_job()
         if filename: return self._output_files[filename]
         else: return self._output_files
+
+    def glob_output(self, pattern):
+        """ Return dict of all files that match the glob pattern
+        """
+        filenames = self.get_output()
+        matches = fnmatch.filter(filenames.keys(), pattern)
+        return {f:filenames[f] for f in matches}
 
     def get_display_object(self):
         """Return a jupyter widget"""
