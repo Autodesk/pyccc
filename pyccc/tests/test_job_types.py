@@ -51,8 +51,7 @@ def test_file_glob(fixture, request):
     job.wait()
 
     assert set(job.get_output().keys()) <= set('a.txt b c d.txt e.gif'.split())
-    assert set(job.glob_output('*.txt')) == set('a.txt d.txt'.split())
-
+    assert set(job.glob_output('*.txt').keys()) == set('a.txt d.txt'.split())
 
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
@@ -162,6 +161,16 @@ def test_function_with_renamed_closure_mod(fixture, request):
 def test_function_with_renamed_module_var(fixture, request):
     result = _runcall(fixture, request, function_tests.fn_with_renamed_attr, 'a')
     assert not result
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_bash_exitcode(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+    job = pyccc.Job(image='python:2.7-slim',
+                    command='exit 35',
+                    engine=engine)
+    job.wait()
+    assert job.exitcode == 35
 
 
 def _runcall(fixture, request, function, *args, **kwargs):

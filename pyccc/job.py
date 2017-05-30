@@ -162,12 +162,18 @@ class Job(object):
         self._submitted = True
         if wait: self.wait()
 
-
     def wait(self):
         """Wait for job to finish"""
+        returncode = self.engine.wait(self)
         if not self._finished:
-            self.engine.wait(self)
             self._finish_job()
+        return returncode
+
+    @property
+    def exitcode(self):
+        if not self._finished:
+            raise pyccc.JobStillRunning(self)
+        return self.wait()
 
     @property
     def status(self):

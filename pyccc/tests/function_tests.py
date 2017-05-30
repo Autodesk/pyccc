@@ -1,4 +1,5 @@
 # some variables for the global namespace
+import sys
 import collections
 from itertools import chain
 import random as rnd
@@ -37,6 +38,8 @@ def fn_with_renamed_mod():
 def fn_with_renamed_attr(a):
     return module_check(a)
 
+def fn_with_exit_35():
+    sys.exit(35)
 
 class Cls(object):
     def __init__(self):
