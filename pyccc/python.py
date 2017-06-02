@@ -39,7 +39,7 @@ __all__ = []
 
 
 PYTHON_JOB_FILE = LocalFile('%s/static/run_job.py' % pyccc.PACKAGE_PATH)
-DEFAULT_INTERPRETER = 'python%s.%s' % sys.version_info[:2]
+DEFAULT_INTERPRETER = 'python%s' % sys.version_info.major
 PICKLE_PROTOCOL = 2  # required for 2/3 compatibile pickle objects
 
 if sys.version_info.major == 2:
@@ -67,6 +67,7 @@ class PythonCall(object):
                 self.is_instancemethod = False
             else:
                 self.is_instancemethod = True
+
 
 @exports
 class PythonJob(job.Job):
@@ -262,7 +263,6 @@ class PackagedFunction(native.object):
         self.global_closure = globalvars['vars']
         self.global_modules = globalvars['modules']
         self.global_functions = globalvars['functions']
-        print(self.global_modules)
 
     def run(self, func=None):
         """

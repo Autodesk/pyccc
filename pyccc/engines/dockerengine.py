@@ -82,8 +82,9 @@ class Docker(EngineBase):
         job.containerid = job.container['Id']
         job.jobid = job.containerid
 
+
     def wait(self, job):
-        self.client.wait(job.container)
+        return self.client.wait(job.container)
 
     def kill(self, job):
         self.client.kill(job.container)

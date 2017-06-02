@@ -1,7 +1,9 @@
 # some variables for the global namespace
+import sys
 import collections
 from itertools import chain
 import random as rnd
+import time
 from inspect import ismodule as module_check
 
 
@@ -36,6 +38,11 @@ def fn_with_renamed_mod():
 # includes a renamed module attribute
 def fn_with_renamed_attr(a):
     return module_check(a)
+
+
+def sleep_then_exit_38():
+    time.sleep(5)
+    sys.exit(38)
 
 
 class Cls(object):
