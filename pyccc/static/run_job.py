@@ -26,10 +26,9 @@ import sys
 import pickle
 import traceback as tb
 
-PICKLE_PROTOCOL = 2  # required for 2/3 compatible pickle objects
-
 import source  # the dynamically created source file
 
+PICKLE_PROTOCOL = 2  # required for 2/3 compatible pickle objects
 
 RENAMETABLE = {'pyccc.python': 'source',
                '__main__': 'source'}
@@ -47,9 +46,7 @@ def main():
     os.environ['IS_PYCCC_JOB'] = '1'
     try:
         funcpkg, func = load_job()
-
         result = funcpkg.run(func)
-
         serialize_output(result)
 
         if funcpkg.is_imethod:
@@ -59,6 +56,7 @@ def main():
     # Catch all exceptions and return them to the client
     except Exception as exc:
         capture_exceptions(exc)
+        raise
 
 
 def load_job():
@@ -78,14 +76,12 @@ def load_job():
 
 def serialize_output(result):
     with open('_function_return.pkl', 'wb') as rp:
-        pickle.dump(result, rp, pickle.HIGHEST_PROTOCOL)
+        pickle.dump(result, rp, PICKLE_PROTOCOL)
 
 
 def capture_exceptions(exc):
-    if len(sys.argv) > 1 and sys.argv[1] == '--debug':
-        raise  # for debugging in a container
     with open('exception.pkl', 'wb') as excfile:
-        pickle.dump(exc, excfile)
+        pickle.dump(exc, excfile, protocol=PICKLE_PROTOCOL)
     with open('traceback.txt', 'w') as tbfile:
         tb.print_exc(file=tbfile)
 

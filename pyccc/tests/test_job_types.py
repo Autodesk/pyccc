@@ -167,10 +167,28 @@ def test_function_with_renamed_module_var(fixture, request):
 def test_bash_exitcode(fixture, request):
     engine = request.getfuncargvalue(fixture)
     job = pyccc.Job(image='python:2.7-slim',
-                    command='exit 35',
-                    engine=engine)
+                    command='sleep 5 && exit 35',
+                    engine=engine,
+                    submit=True)
+    with pytest.raises(pyccc.JobStillRunning):
+        job.exitcode
     job.wait()
+    assert job.wait() == 35
     assert job.exitcode == 35
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_python_exitcode(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+    fn = pyccc.PythonCall(function_tests.sleep_then_exit_38)
+    job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
+
+    with pytest.raises(pyccc.JobStillRunning):
+        job.exitcode
+
+    job.wait()
+    assert job.wait() == 38
+    assert job.exitcode == 38
 
 
 def _runcall(fixture, request, function, *args, **kwargs):

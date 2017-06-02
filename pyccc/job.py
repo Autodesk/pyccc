@@ -67,7 +67,7 @@ class Job(object):
         when_finished (callable): function that can be called as ``func(job)``; will be called
             locally once, when this job completes
         numcpus (int): number of CPUs required (default:1)
-        runtime (int): kill job if the runtime exceeds this value (in seconds)`
+        runtime (int): kill job if the runtime exceeds this value (in seconds) (default: 1 hour)`
     """
     def __init__(self, engine=None,
                  image=None,

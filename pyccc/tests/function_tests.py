@@ -3,6 +3,7 @@ import sys
 import collections
 from itertools import chain
 import random as rnd
+import time
 from inspect import ismodule as module_check
 
 
@@ -38,8 +39,11 @@ def fn_with_renamed_mod():
 def fn_with_renamed_attr(a):
     return module_check(a)
 
-def fn_with_exit_35():
-    sys.exit(35)
+
+def sleep_then_exit_38():
+    time.sleep(5)
+    sys.exit(38)
+
 
 class Cls(object):
     def __init__(self):
