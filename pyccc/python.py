@@ -24,10 +24,11 @@ import pickle
 import inspect
 
 import pyccc
-from pyccc import job
-from pyccc import source_inspections as src
-from pyccc.exceptions import ProgramFailure
-from pyccc.files import StringContainer, LocalFile
+from . import job
+from . import source_inspections as src
+from .exceptions import ProgramFailure
+from .files import StringContainer, LocalFile
+from . import picklers
 
 from ._native import native
 
@@ -49,7 +50,6 @@ else:
     assert sys.version_info.major == 3
     PYVERSION = 3
     import builtins as BUILTINS
-
 
 @exports
 class PythonCall(object):
@@ -75,6 +75,7 @@ class PythonJob(job.Job):
     # @utils.doc_inherit
     def __init__(self, engine, image, command,
                  interpreter=DEFAULT_INTERPRETER,
+                 persist_references=False,
                  sendsource=True, **kwargs):
         self._raised = False
         self._updated_object = None
@@ -83,6 +84,7 @@ class PythonJob(job.Job):
         self.sendsource = sendsource
         self._function_result = None
         self.interpreter = self._clean_interpreter_string(interpreter)
+        self.persist_references = persist_references
 
         self.function_call = command
 
@@ -108,7 +110,6 @@ class PythonJob(job.Job):
         else:
             return 'python' + str(istr)
 
-
     def _get_python_files(self):
         """
         Construct the files to send the remote host
@@ -118,9 +119,14 @@ class PythonJob(job.Job):
         """
         python_files = {'run_job.py': PYTHON_JOB_FILE}
 
-        remote_function = PackagedFunction(self.function_call)
+        remote_function = PackagedFunction(self.function_call, self.persist_references)
+        if self.persist_references:
+            dumps = picklers.departure_dumps
+        else:
+            dumps = pickle.dumps
+
         python_files['function.pkl'] = pyccc.BytesContainer(
-                pickle.dumps(remote_function, protocol=PICKLE_PROTOCOL),
+                dumps(remote_function, protocol=PICKLE_PROTOCOL),
                 name='function.pkl')
         self._remote_function = remote_function
 
@@ -186,7 +192,12 @@ class PythonJob(job.Job):
                 returnval = self.get_output('_function_return.pkl')
             except KeyError:
                 raise ProgramFailure(self)
-            self._callback_result = pickle.loads(returnval.read('rb'))
+            if self.persist_references:
+                loads = picklers.return_loads
+            else:
+                loads = pickle.loads
+
+            self._callback_result = loads(returnval.read('rb'))
         return self._callback_result
 
     @property
@@ -248,7 +259,7 @@ class PackagedFunction(native.object):
         - Function side effects are not tracked at all.
         - Closure variables and module references will be sent along with the function
     """
-    def __init__(self, function_call):
+    def __init__(self, function_call, persist_references):
         func = function_call.function
         self.is_imethod = function_call.is_instancemethod
         if self.is_imethod:
@@ -258,6 +269,7 @@ class PackagedFunction(native.object):
             self.func_name = func.__name__
         self.args = function_call.args
         self.kwargs = function_call.kwargs
+        self.persist_references = persist_references
 
         globalvars = src.get_global_vars(func)
         self.global_closure = globalvars['vars']
@@ -299,4 +311,7 @@ class PackagedFunction(native.object):
             to_run.__globals__.update(self.global_functions)
         return to_run
 
-PACKAGEDFUNCTIONSOURCE = '\n' + src.getsource(PackagedFunction)
+PACKAGEDFUNCTIONSOURCE = '\n'.join(['',
+                                    src.getsource(PackagedFunction),
+                                    '\nimport pickle',
+                                    src.getsource(picklers.ReturningPickler)])
