@@ -191,6 +191,73 @@ def test_python_exitcode(fixture, request):
     assert job.exitcode == 38
 
 
+class MyRefObj(object):
+    _PERSIST_REFERENCES = True
+
+    def identity(self):
+        return self
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_persistence_assumptions(fixture, request):
+    # Object references are not persisted across function calls by default.
+    # This is the control experiment prior to the following tests
+    testobj = MyRefObj()
+    testobj.o = MyRefObj()
+    testobj.o.o = testobj
+
+    engine = request.getfuncargvalue(fixture)
+    pycall = pyccc.PythonCall(testobj.identity)
+
+    # First the control experiment - references are NOT persisted
+    job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
+    job.wait()
+    result = job.result
+    assert result is not testobj
+    assert result.o is not testobj.o
+    assert result.o.o is result
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_persist_references_flag(fixture, request):
+    testobj = MyRefObj()
+    testobj.o = MyRefObj()
+    testobj.o.o = testobj
+
+    engine = request.getfuncargvalue(fixture)
+    pycall = pyccc.PythonCall(testobj.identity)
+
+    # With the right flag, references ARE now persisted
+    job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION, persist_references=True)
+    job.wait()
+    result = job.result
+    assert result is testobj
+    assert result.o is testobj.o
+    assert result.o.o is result
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_persistent_and_nonpersistent_mixture(fixture, request):
+    # References only persisted in objects that request it
+    testobj = MyRefObj()
+    testobj.o = MyRefObj()
+    testobj.o.o = testobj
+    testobj.should_persist = MyRefObj()
+    testobj._PERSIST_REFERENCES = False
+    testobj.o._PERSIST_REFERENCES = False
+
+    engine = request.getfuncargvalue(fixture)
+    pycall = pyccc.PythonCall(testobj.identity)
+
+    job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION, persist_references=True)
+    job.wait()
+    result = job.result
+    assert result is not testobj
+    assert result.o is not testobj.o
+    assert result.o.o is result
+    assert result.should_persist is testobj.should_persist
+
+
 def _runcall(fixture, request, function, *args, **kwargs):
     engine = request.getfuncargvalue(fixture)
     fn = pyccc.PythonCall(function, *args, **kwargs)

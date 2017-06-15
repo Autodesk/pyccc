@@ -47,7 +47,7 @@ def main():
     try:
         funcpkg, func = load_job()
         result = funcpkg.run(func)
-        serialize_output(result)
+        serialize_output(result, persistrefs=funcpkg.persist_references)
 
         if funcpkg.is_imethod:
             with open('_object_state.pkl', 'wb') as ofp:
@@ -74,9 +74,13 @@ def load_job():
     return funcpkg, func
 
 
-def serialize_output(result):
+def serialize_output(result, persistrefs=False):
     with open('_function_return.pkl', 'wb') as rp:
-        pickle.dump(result, rp, PICKLE_PROTOCOL)
+        if persistrefs:
+            pickler = source.ReturningPickler(rp, PICKLE_PROTOCOL)
+            pickler.dump(result)
+        else:
+            pickle.dump(result, rp, PICKLE_PROTOCOL)
 
 
 def capture_exceptions(exc):

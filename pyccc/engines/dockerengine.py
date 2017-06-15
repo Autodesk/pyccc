@@ -41,6 +41,7 @@ class Docker(EngineBase):
         self.default_wdir = workingdir
         self.hostname = self.client.base_url
 
+
     def connect_to_docker(self, client=None):
         if isinstance(client, basestring):
             client = du.get_docker_apiclient(client)
