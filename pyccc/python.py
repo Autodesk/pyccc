@@ -51,6 +51,7 @@ else:
     PYVERSION = 3
     import builtins as BUILTINS
 
+
 @exports
 class PythonCall(object):
     def __init__(self, function, *args, **kwargs):
@@ -197,8 +198,8 @@ class PythonJob(job.Job):
             else:
                 loads = pickle.loads
 
-            self._callback_result = loads(returnval.read('rb'))
-        return self._callback_result
+            self._function_result = loads(returnval.read('rb'))
+        return self._function_result
 
     @property
     def updated_object(self):
