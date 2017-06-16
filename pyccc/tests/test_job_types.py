@@ -6,8 +6,7 @@ from . import function_tests
 
 """Basic test battery for regular and python jobs on all underlying engines"""
 
-REMOTE_PYTHON_VERSIONS = {2: '2.7', 3: '3.6'}
-PYVERSION = REMOTE_PYTHON_VERSIONS[sys.version_info.major]
+PYVERSION = '%s.%s' % (sys.version_info.major, sys.version_info.minor)
 PYIMAGE = 'python:%s-slim' % PYVERSION
 
 
@@ -15,11 +14,8 @@ PYIMAGE = 'python:%s-slim' % PYVERSION
 # Python test objects  #
 ########################
 
-
-
 def _raise_valueerror(msg):
     raise ValueError(msg)
-
 
 
 ###################
@@ -148,8 +144,8 @@ def test_function_with_closure_mod(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_function_with_renamed_closure_mod(fixture, request):
-    if sys.version_info[:2] == (3, 6):
-        pytest.xfail("This is either impossible or a bug with Python 3.6")
+    if sys.version_info.major == 3:
+        pytest.xfail("This is either impossible or a bug with Python 3")
 
     result = _runcall(fixture, request, function_tests.fn_with_renamed_mod)
     assert len(result) == 10
@@ -195,6 +191,10 @@ class MyRefObj(object):
     _PERSIST_REFERENCES = True
 
     def identity(self):
+        return self
+
+    def tagme(self):
+        self.tag = 'mytag'
         return self
 
 
@@ -256,6 +256,59 @@ def test_persistent_and_nonpersistent_mixture(fixture, request):
     assert result.o is not testobj.o
     assert result.o.o is result
     assert result.should_persist is testobj.should_persist
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_callback(fixture, request):
+    def _callback(job):
+        return job.get_output('out.txt').read().strip()
+
+    engine = request.getfuncargvalue(fixture)
+    job = engine.launch(image=PYIMAGE,
+                        command='echo hello world > out.txt',
+                        when_finished=_callback)
+    job.wait()
+
+    assert job.result == 'hello world'
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_callback_after_python_job(fixture, request):
+    def _callback(job):
+        return job.function_result - 1
+
+    fn = pyccc.PythonCall(function_tests.fn, 3.0)
+    engine = request.getfuncargvalue(fixture)
+    job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION, when_finished=_callback)
+    job.wait()
+
+    assert job.function_result == 4.0
+    assert job.result == 3.0
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_job_with_callback_and_references(fixture, request):
+    def _callback(job):
+        return job.function_result.obj
+
+    testobj = MyRefObj()
+    testobj.obj = MyRefObj()
+
+    fn = pyccc.PythonCall(testobj.tagme)
+    engine = request.getfuncargvalue(fixture)
+    job = engine.launch(image=PYIMAGE, command=fn,
+                        interpreter=PYVERSION, when_finished=_callback, persist_references=True)
+    job.wait()
+
+    assert job.function_result is testobj
+    assert job.result is testobj.obj
+    assert job.function_result.obj is testobj.obj
+
+    # A surprising result but correct behavior - because we replace the object with its reference,
+    # it is unchanged.
+    assert not hasattr(job.result, 'tag')
+    assert not hasattr(testobj, 'tag')
+    assert hasattr(job.updated_object, 'tag')
 
 
 def _runcall(fixture, request, function, *args, **kwargs):
