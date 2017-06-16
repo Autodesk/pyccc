@@ -19,8 +19,9 @@ from future.builtins import *
 import sys
 import os
 import tempfile
+from future.utils import PY2
 
-CACHEDIR = '/tmp/pyccc_file_cache/'
+CACHEDIR = os.path.join(tempfile.gettempdir(), 'pyccc_file_cache')
 
 ENCODING = sys.getdefaultencoding()
 if ENCODING == 'ascii':
@@ -29,7 +30,14 @@ if ENCODING == 'ascii':
 
 def get_tempfile():
     if not os.path.exists(CACHEDIR):
-        os.mkdir(CACHEDIR)
+        if PY2:
+            try:
+                os.mkdir(CACHEDIR)
+            except OSError:
+                if not os.path.isdir(CACHEDIR):
+                    raise
+        else:
+            os.makedirs(CACHEDIR, exist_ok=True)
     tmpfile = tempfile.NamedTemporaryFile(dir=CACHEDIR, delete=False)
     return tmpfile
 
