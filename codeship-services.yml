@@ -2,7 +2,7 @@ test2_7:
   build:
     dockerfile: Dockerfile.python27
   add_docker: true
-  working_dir: /opt/py-cloud-compute-cannon/pyccc/tests
+  working_dir: /opt/py-cloud-compute-cannon
   cached: true
 
 
@@ -10,7 +10,7 @@ test3_6:
   build:
     dockerfile: Dockerfile.python36
   add_docker: true
-  working_dir: /opt/py-cloud-compute-cannon/pyccc/tests
+  working_dir: /opt/py-cloud-compute-cannon
   cached: true
 
 
