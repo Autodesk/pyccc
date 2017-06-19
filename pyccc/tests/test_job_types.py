@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import sys
 import pytest
 import pyccc
@@ -270,6 +271,17 @@ def test_callback(fixture, request):
     job.wait()
 
     assert job.result == 'hello world'
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_unicode_stdout_and_return(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+    fn = pyccc.PythonCall(function_tests.fn_prints_unicode)
+    job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
+    job.wait()
+    assert job.result == u'¶'
+    assert job.stdout.strip() == u'Å'
+    assert job.stderr.strip() == u'µ'
 
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])

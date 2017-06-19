@@ -68,7 +68,8 @@ class Subprocess(EngineBase):
                                        shell=True,
                                        cwd=job.workingdir,
                                        stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE)
+                                       stderr=subprocess.PIPE,
+                                       env={'PYTHONIOENCODING': 'utf-8'})
         job.jobid = job.subproc.pid
         job._started = True
         return job.subproc.pid
@@ -96,7 +97,6 @@ class Subprocess(EngineBase):
 
     def _get_final_stds(self, job):
         strings = []
-        #Todo - we'll need to buffer any streamed output, since stdout isn't seekable
         for fileobj in (job.subproc.stdout, job.subproc.stderr):
-            strings.append(fileobj.read().decode(self.term_encoding))
+            strings.append(fileobj.read().decode('utf-8'))
         return strings

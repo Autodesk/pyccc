@@ -78,11 +78,11 @@ class Docker(EngineBase):
 
         job.container = self.client.create_container(job.imageid,
                                                      command=cmdstring,
-                                                     working_dir=job.workingdir)
+                                                     working_dir=job.workingdir,
+                                                     environment={'PYTHONIOENCODING':'utf-8'})
         self.client.start(job.container)
         job.containerid = job.container['Id']
         job.jobid = job.containerid
-
 
     def wait(self, job):
         return self.client.wait(job.container)
@@ -125,10 +125,7 @@ class Docker(EngineBase):
     def _get_final_stds(self, job):
         stdout = self.client.logs(job.container, stdout=True, stderr=False)
         stderr = self.client.logs(job.container, stdout=False, stderr=True)
-        return (utils.autodecode(stdout),
-                utils.autodecode(stderr))
-
-
+        return stdout.decode('utf-8'), stderr.decode('utf-8')
 
 
 class DockerMachine(Docker):

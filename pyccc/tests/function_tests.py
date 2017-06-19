@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # some variables for the global namespace
 import sys
 import collections
@@ -38,6 +39,13 @@ def fn_with_renamed_mod():
 # includes a renamed module attribute
 def fn_with_renamed_attr(a):
     return module_check(a)
+
+
+# prints and returns unicode
+def fn_prints_unicode():
+    print(u'Å')
+    sys.stderr.write(u'µ')
+    return u'¶'
 
 
 def sleep_then_exit_38():

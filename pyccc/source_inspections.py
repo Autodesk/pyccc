@@ -14,18 +14,21 @@
 """
 Source code inspections for sending python code to workers
 """
-from __future__ import print_function, unicode_literals, absolute_import, division
+from __future__ import print_function, absolute_import, division, unicode_literals
 
 from future import standard_library, builtins
 standard_library.install_aliases()
 from future.builtins import *
 
+from future.utils import PY2
+
 import inspect
 import linecache
 import re
-import string
 
-__author__ = 'aaronvirshup'
+from .backports import getclosurevars
+if PY2:
+    from .backports import detect_encoding
 
 
 def get_global_vars(func):
@@ -36,7 +39,6 @@ def get_global_vars(func):
 
     Returns:
         dict: mapping of variable names to globally bound VARIABLES
-        dict: mapping of variable names to globally bound MODULES
     """
     closure = getclosurevars(func)
     if closure['nonlocal']:
@@ -67,7 +69,7 @@ def getsource(classorfunc):
         classorfunc (type or function): the object to get the source code for
 
     Returns:
-        str: source code (without any decorators)
+        str: text of source code (without any decorators). Note: in python 2, this returns unicode
     """
     if _isbuiltin(classorfunc):
         return ''
@@ -79,7 +81,12 @@ def getsource(classorfunc):
 
     declaration = []
 
-    sourcelines = iter(source.splitlines())
+    lines = source.splitlines()
+    if PY2 and not isinstance(source, unicode):
+        encoding = detect_encoding(iter(lines).next)[0]
+        sourcelines = (s.decode(encoding) for s in lines)
+    else:
+        sourcelines = iter(lines)
 
     # First, get the declaration
     found_keyword = False
@@ -153,6 +160,11 @@ def getsourcefallback(cls):
     name = cls.__name__
     pat = re.compile(r'^(\s*)class\s*'+name+r'\b')
 
+    # AMVMOD: find the encoding (necessary for python 2 only)
+    #if PY2:
+    #    with open(file, 'rb') as infile:
+    #        encoding = detect_encoding(infile.readline)[0]
+
     # make some effort to find the best matching class definition:
     # use the one with the least indentation, which is the one
     # that's most probably not inside a function definition.
@@ -177,70 +189,14 @@ def getsourcefallback(cls):
         raise IOError('could not find class definition')
     ### end modified inspect.findsource ###
 
-    #### this is what inspect.getsourcelines does ###
+    # this is what inspect.getsourcelines does
     glines = inspect.getblock(flines[flnum:])
 
-    ### And this is what inspect.getsource does ###
-    return string.join(glines, "")
-
-
-def getclosurevars(func):
-    """
-    NOTE: this is "backported" (copied verbatim) from the python3 inspect module
-
-    Get the mapping of free variables to their current values.
-
-    Returns a named tuple of dicts mapping the current nonlocal, global
-    and builtin references as seen by the body of the function. A final
-    set of unbound names that could not be resolved is also provided.
-    """
-
-    if inspect.ismethod(func):
-        func = func.__func__
-
-    elif not inspect.isroutine(func):
-        raise TypeError("'{!r}' is not a Python function".format(func))
-
-    # AMVMOD: deal with python 2 builtins that don't define these
-    code = getattr(func, '__code__', None)
-    closure = getattr(func, '__closure__', None)
-    co_names = getattr(code, 'co_names', ())
-    glb = getattr(func, '__globals__', {})
-
-    # Nonlocal references are named in co_freevars and resolved
-    # by looking them up in __closure__ by positional index
-    if closure is None:
-        nonlocal_vars = {}
+    # And this is what inspect.getsource does
+    if False: #if PY2:
+        return ("".join(glines)).decode(encoding)
     else:
-        nonlocal_vars = {var: cell.cell_contents
-                         for var, cell in zip(code.co_freevars, func.__closure__)}
-
-    # Global and builtin references are named in co_names and resolved
-    # by looking them up in __globals__ or __builtins__
-    global_ns = glb
-    builtin_ns = global_ns.get("__builtins__", builtins.__dict__)
-    if inspect.ismodule(builtin_ns):
-        builtin_ns = builtin_ns.__dict__
-    global_vars = {}
-    builtin_vars = {}
-    unbound_names = set()
-    for name in co_names:
-        if name in ("None", "True", "False"):
-            # Because these used to be builtins instead of keywords, they
-            # may still show up as name references. We ignore them.
-            continue
-        try:
-            global_vars[name] = global_ns[name]
-        except KeyError:
-            try:
-                builtin_vars[name] = builtin_ns[name]
-            except KeyError:
-                unbound_names.add(name)
-
-    return {'nonlocal': nonlocal_vars,
-            'global': global_vars,
-            'builtin': builtin_vars,
-            'unbound': unbound_names}
+        return "".join(glines)
 
 
 def _isbuiltin(obj):
@@ -250,3 +206,4 @@ def _isbuiltin(obj):
         return True
     else:
         return False
+
