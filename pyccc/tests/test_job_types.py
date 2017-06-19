@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import sys
 import pytest
 import pyccc
@@ -273,6 +274,17 @@ def test_callback(fixture, request):
 
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_unicode_stdout_and_return(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+    fn = pyccc.PythonCall(function_tests.fn_prints_unicode)
+    job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
+    job.wait()
+    assert job.result == u'¶'
+    assert job.stdout.strip() == u'Å'
+    assert job.stderr.strip() == u'µ'
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_callback_after_python_job(fixture, request):
     def _callback(job):
         return job.function_result - 1
@@ -309,6 +321,7 @@ def test_job_with_callback_and_references(fixture, request):
     assert not hasattr(job.result, 'tag')
     assert not hasattr(testobj, 'tag')
     assert hasattr(job.updated_object, 'tag')
+
 
 
 def _runcall(fixture, request, function, *args, **kwargs):
