@@ -64,7 +64,7 @@ def build_dfile_stream(client, dfilestream, is_tar=False, **kwargs):
     # this blocks until the image is done building
     for x in buildcmd:
         if isinstance(x, bytes):
-            x = x.decode('utf-8')  # TODO: is this a bug? Why is docker API returning bytes?
+            x = x.decode('utf-8')
         logging.info('building image:%s' % (x.rstrip('\n')))
 
     result = json.loads(_issue1134_helper(x))

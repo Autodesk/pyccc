@@ -146,30 +146,28 @@ class PythonJob(job.Job):
         Returns:
              bytes: utf-8 encoded source code
         """
+        srclines = [u'# -*- coding: utf-8 -*-\n']
         if self.sendsource:
             func = self.function_call.function
             if self.function_call.is_instancemethod:
                 obj = func.__self__.__class__
             else:
                 obj = func
-            srclines = [src.getsource(obj)]
-        elif self.function_call.is_instancemethod:
-            srclines = ['']
-        else:
-            srclines = ["from %s import %s\n"%(self.function_call.function.__module__,
-                                               self.function_call.function.__name__)]
+            srclines.append(src.getsource(obj))
+        elif not self.function_call.is_instancemethod:
+            srclines.append("from %s import %s\n"%(self.function_call.function.__module__,
+                                                   self.function_call.function.__name__))
 
         if remote_function is not None and remote_function.global_functions:
             for name, f in remote_function.global_functions.items():
-                srclines.append('\n# source code for function "%s"' % name)
+                srclines.append(u'\n# source code for function "%s"' % name)
                 srclines.append(src.getsource(f))
 
         # This is the only source code needed from pyccc
         srclines.append(PACKAGEDFUNCTIONSOURCE)
 
-        if isinstance(srclines, str):
-            srclines = b'# -*- coding: utf-8 -*-\n' + srclines.encode('utf-8')
-        return '\n'.join(srclines)
+        srccode = '\n'.join(srclines)
+        return srccode.encode('utf-8')
 
     @property
     def result(self):

@@ -14,7 +14,7 @@
 """
 Source code inspections for sending python code to workers
 """
-from __future__ import print_function, absolute_import, division
+from __future__ import print_function, absolute_import, division, unicode_literals
 
 from future import standard_library, builtins
 standard_library.install_aliases()
@@ -69,7 +69,7 @@ def getsource(classorfunc):
         classorfunc (type or function): the object to get the source code for
 
     Returns:
-        str: source code (without any decorators)
+        str: text of source code (without any decorators). Note: in python 2, this returns unicode
     """
     if _isbuiltin(classorfunc):
         return ''
@@ -82,12 +82,11 @@ def getsource(classorfunc):
     declaration = []
 
     lines = source.splitlines()
-    #if PY2 and not isinstance(source, unicode):
-    #    encoding = detect_encoding(iter(lines).next)
-    #else:
-    #    encoding = None
-
-    sourcelines = iter(lines)
+    if PY2 and not isinstance(source, unicode):
+        encoding = detect_encoding(iter(lines).next)[0]
+        sourcelines = (s.decode(encoding) for s in lines)
+    else:
+        sourcelines = iter(lines)
 
     # First, get the declaration
     found_keyword = False

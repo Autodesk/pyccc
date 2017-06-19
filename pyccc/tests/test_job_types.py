@@ -323,7 +323,6 @@ def test_job_with_callback_and_references(fixture, request):
     assert hasattr(job.updated_object, 'tag')
 
 
-
 def _runcall(fixture, request, function, *args, **kwargs):
     engine = request.getfuncargvalue(fixture)
     fn = pyccc.PythonCall(function, *args, **kwargs)
