@@ -50,6 +50,8 @@ class ReturningPickler(pickle.Pickler):
         """
         if getattr(obj, '_persistent_ref', None) is not None:
             return obj._persistent_ref
+        else:
+            return None
 
 
 class ReturningUnpickler(pickle.Unpickler):

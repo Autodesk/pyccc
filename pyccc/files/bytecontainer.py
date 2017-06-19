@@ -73,7 +73,7 @@ class BytesContainer(FileReferenceBase):
 
         if access_type == 't' and encoding is not None and encoding != self.encoded_with:
             warnings.warn('Attempting to decode %s as "%s", but encoding is declared as "%s"'
-                          %(self, encoding, self.encoded_with))
+                          % (self, encoding, self.encoded_with))
 
         if encoding is None:
             encoding = self.encoded_with
