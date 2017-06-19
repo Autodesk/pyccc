@@ -23,6 +23,7 @@ from __future__ import print_function, unicode_literals, absolute_import, divisi
 import os
 import types
 import sys
+import locale
 import pickle
 import traceback as tb
 
@@ -40,6 +41,11 @@ else:
     assert sys.version_info.major == 3
     PYVERSION = 3
     import builtins as BUILTINS
+
+if sys.stdout.encoding is None:
+    sys.stdout.encoding = locale.getpreferredencoding()
+if sys.stderr.encoding is None:
+    sys.stdout.encoding = locale.getpreferredencoding()
 
 
 def main():
