@@ -58,10 +58,6 @@ class LazyFetcherBase(CachedFile):
     def _fetch(self):
         raise NotImplemented("_fetch needs to be implemented by subclass")
 
-    def __del__(self):
-        if self._fetched:
-            super(LazyFetcherBase, self).__del__()
-
     def __str__(self):
         if self._fetched:
             return super(LazyFetcherBase, self).__str__()

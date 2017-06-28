@@ -115,9 +115,6 @@ class CachedFile(LocalFile):
         self.tmpfile = tmpfile
         return path
 
-    def __del__(self):
-        os.unlink(self.localpath)
-
     def __str__(self):
         return 'Cached file from %s @ %s' % (self.source, self.localpath)
 
