@@ -19,18 +19,18 @@ from future.builtins import *
 from . import status
 import sys
 
-from pyccc import status, utils
+from pyccc import status, utils, JobStillRunning
 
 if utils.can_use_widgets():
     widgets_enabled = True
-    from ipywidgets import Box, Tab
+    from ipywidgets import Box, Tab, Layout
     import ipywidgets as ipy
     import traitlets
 
 else:
     widgets_enabled = False
     ipy = traitlets = None
-    Box = Tab = object
+    Box = Tab = Layout = object
 
 
 __all__ = 'JobStatusDisplay'.split()
@@ -42,14 +42,7 @@ class JobStatusDisplay(Box):
     """
 
     def __init__(self, job, **kwargs):
-        """
-        :param job:
-        :type job: bioplatform.job.Job
-        :param kwargs:
-        :return:
-        """
-        kwargs.setdefault('orientation', 'vertical')
-        super(JobStatusDisplay, self).__init__(**kwargs)
+        super(JobStatusDisplay, self).__init__(layout=ipy.Layout(flex_flow='column'))
         self._job = job
         self.update()
         self.on_displayed(self.update)
@@ -139,12 +132,12 @@ class FileView(Box):
         height = '%spx' % min(self._string.count('\n') * 16 + 36, 600)
         try:
             self.textarea = ipy.Textarea(self._string[:self.CHUNK],
-                                         height=height,
-                                         **self.TEXTAREA_KWARGS)
+                                         layout=Layout(height=height,
+                                                       **self.TEXTAREA_KWARGS))
         except traitlets.TraitError:
             self.textarea = ipy.Textarea('[NOT SHOWN - UNABLE TO DECODE FILE]',
-                                         height='300px',
-                                         **self.TEXTAREA_KWARGS)
+                                         layout=Layout(height='300px',
+                                                       **self.TEXTAREA_KWARGS))
             return
         finally:
             self.children = [self.textarea]
@@ -191,12 +184,19 @@ class StatusView(Box):
         super(StatusView,self).__init__(**kwargs)
         self._job = job
         stat = job.status
-        text = ipy.HTML(self.STATUS_STRING%(job.name,
-                                              str(job.engine),
-                                              job.jobid,
-                                              job.image,
-                                              job.command,
-                                            stat))
+        statstring = self.STATUS_STRING % (job.name,
+                                           str(job.engine),
+                                           job.jobid,
+                                           job.image,
+                                           job.command,
+                                           stat)
+        try:
+            statstring += '<br><b>Exit code: </b> %s</br>' % job.exitcode
+        except JobStillRunning:
+            pass
+
+        text = ipy.HTML(statstring)
+
         if stat == status.QUEUED:
             bar_spec = dict(value=1, bar_style='danger')
         elif stat == status.RUNNING:
