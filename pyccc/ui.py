@@ -56,7 +56,6 @@ class JobStatusDisplay(Box):
             input_browser = ipy.HTML('No input files')
         file_browser = ipy.Tab([input_browser])
         file_browser.set_title(0, 'Input files')
-        file_browser.selected_index = -1
 
         if jobstat == status.FINISHED:
             output_files = self._job.get_output()
@@ -87,25 +86,24 @@ class FileBrowser(Tab):
             ext = filename.split('.')[-1]
             if ext in ignores:
                 continue
-            file_display = FileView(fileobj)
+            file_display = FileView(filename, fileobj)
             file_list.append(file_display)
             titles.append(filename)
         super(FileBrowser, self).__init__(file_list, **kwargs)
         self.set_title(0, 'x')
         for ititle, title in enumerate(titles):
             self.set_title(ititle + 1, title)
-        self.selected_index = -1
 
 
 class FileView(Box):
     CHUNK = 10000
     TRUNCATE_MESSAGE = '... [click "See more" to continue]'
     TEXTAREA_KWARGS = dict(font_family='monospace',
-                           width='75%',
-                           disabled=True)
+                           width='75%')
 
-    def __init__(self, fileobj, **kwargs):
-        super(FileView, self).__init__(**kwargs)
+    def __init__(self, filename, fileobj, **kwargs):
+        super(FileView, self).__init__(disabled=True)
+        self.filename = filename
         self._string = None
         self._current_pos = 0
         self.load_more_button = None
@@ -132,8 +130,7 @@ class FileView(Box):
         height = '%spx' % min(self._string.count('\n') * 16 + 36, 600)
         try:
             self.textarea = ipy.Textarea(self._string[:self.CHUNK],
-                                         layout=Layout(height=height,
-                                                       **self.TEXTAREA_KWARGS))
+                                         layout=Layout(width='100%', height=height))
         except traitlets.TraitError:
             self.textarea = ipy.Textarea('[NOT SHOWN - UNABLE TO DECODE FILE]',
                                          layout=Layout(height='300px',
@@ -206,7 +203,5 @@ class StatusView(Box):
         else:
             bar_spec = dict(value=100, bar_style='danger')
         bar = ipy.FloatProgress(**bar_spec)
-        bar._css = [("div", "margin-top", "0px")]
         self.children = [text, bar]
-
 
