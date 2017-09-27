@@ -174,6 +174,21 @@ def test_bash_exitcode(fixture, request):
     assert job.exitcode == 35
 
 
+@pytest.fixture
+def set_env_var():
+    import os
+    assert 'NULL123' not in os.environ, "Bleeding environment"
+    os.environ['NULL123'] = 'nullabc'
+    yield
+    del os.environ['NULL123']
+
+
+def test_subprocess_environment_preserved(subprocess_engine, set_env_var):
+    job = subprocess_engine.launch(command='echo $NULL123', image='python:2.7-slim')
+    job.wait()
+    assert job.stdout.strip() == 'nullabc'
+
+
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_python_exitcode(fixture, request):
     engine = request.getfuncargvalue(fixture)

@@ -64,12 +64,14 @@ class Subprocess(EngineBase):
             for filename, f in job.inputs.items():
                 f.put(os.path.join(job.workingdir, filename))
 
+        subenv = os.environ.copy()
+        subenv['PYTHONIOENCODING'] = 'utf-8'
         job.subproc = subprocess.Popen(job.command,
                                        shell=True,
                                        cwd=job.workingdir,
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE,
-                                       env={'PYTHONIOENCODING': 'utf-8'})
+                                       env=subenv)
         job.jobid = job.subproc.pid
         job._started = True
         return job.subproc.pid
