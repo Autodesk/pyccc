@@ -235,7 +235,10 @@ class Job(object):
         or just the specific file otherwise
         """
         if not self._finished: self._finish_job()
-        if filename: return self._output_files[filename]
+        if filename:
+            if filename not in self._output_files:
+                raise pyccc.exceptions.OutputFileNotFound(self, filename=filename)
+            return self._output_files[filename]
         else: return self._output_files
 
     def glob_output(self, pattern):

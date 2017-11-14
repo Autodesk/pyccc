@@ -50,6 +50,16 @@ class ProgramFailure(Exception):
         super().__init__(msg, **kwargs)
 
 
+class OutputFileNotFound(JobExceptionBase, KeyError):  # inherits from KeyError for backwards compatibility
+    def __init__(self, job, msg=None, filename=None):
+
+        if msg is None:  # error message is up to last 10 lines of stderr
+            msg = '\n'.join(['File "%s" not found. Error message:' % filename] +
+                            job.stderr.splitlines()[-10:])
+
+        super().__init__(job, msg)
+
+
 class TimeoutError(JobExceptionBase):
     """ This job's status is not "Finshed" or "Error"
     """

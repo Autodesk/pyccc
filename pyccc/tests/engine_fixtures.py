@@ -22,12 +22,12 @@ def typedfixture(*types, **kwargs):
 # Fixtures        #
 ###################
 
-@typedfixture('engine')
+@typedfixture('engine', scope='session')
 def subprocess_engine():
     return pyccc.Subprocess()
 
 
-@typedfixture('engine')
+@typedfixture('engine', scope='session')
 def public_ccc_engine():
     if not pytest.config.getoption("--testccc"):
         pytest.skip("need --testccc option to run")
@@ -35,6 +35,6 @@ def public_ccc_engine():
         return pyccc.CloudComputeCannon('cloudcomputecannon.bionano.autodesk.com:9000')
 
 
-@typedfixture('engine')
+@typedfixture('engine', scope='session')
 def local_docker_engine():
     return pyccc.Docker()

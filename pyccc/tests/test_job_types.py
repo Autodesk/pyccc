@@ -51,15 +51,28 @@ def test_file_glob(fixture, request):
     assert set(job.glob_output('*.txt').keys()) == set('a.txt d.txt'.split())
 
 
-@pytest.mark.parametrize('fixture', fixture_types['engine'])
-def test_input_ouput_files(fixture, request):
+@pytest.fixture(scope='session', params=fixture_types['engine'])
+def makes_out_txt(request):
+    fixture = request.param
     engine = request.getfuncargvalue(fixture)
     job = engine.launch(image='alpine',
                         command='cat a.txt b.txt > out.txt',
                         inputs={'a.txt': 'a',
                                 'b.txt': pyccc.StringContainer('b')})
     job.wait()
+    return job
+
+
+def test_input_ouput_files(makes_out_txt):
+    job = makes_out_txt
     assert job.get_output('out.txt').read().strip() == 'ab'
+
+
+def test_missing_file(makes_out_txt):
+    job = makes_out_txt
+    with pytest.raises(pyccc.exceptions.OutputFileNotFound):
+        job.get_output('c')
+
 
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
