@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import sys
 import pytest
 import pyccc
@@ -345,7 +346,8 @@ def _runcall(fixture, request, function, *args, **kwargs):
     job.wait()
     return job.result
 
-
+@pytest.mark.skipif('CI_PROJECT_ID' in os.environ,
+                    reason="Can't mount docker socket in codeship")
 def test_docker_socket_mount(local_docker_engine):
     engine = local_docker_engine
 
@@ -369,7 +371,7 @@ def test_docker_volume_mount(local_docker_engine):
     import subprocess, uuid
     engine = local_docker_engine
     key = uuid.uuid4()
-    volname = 'my-mounted-volume'
+    volname = 'my-mounted-volume-%s' % key
 
     # Create a named volume with a file named "keyfile" containing a random uuid4
     subprocess.check_call(('docker volume rm {vn}; docker volume create {vn}; '
