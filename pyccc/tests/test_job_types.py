@@ -356,3 +356,32 @@ def test_docker_socket_mount(local_docker_engine):
     running = job.stdout.strip().splitlines()
     assert job.jobid in running
 
+
+def test_docker_volume_mount(local_docker_engine, tmpdir):
+    import os, uuid
+    engine = local_docker_engine
+    key = uuid.uuid4()
+    mountdir = str(tmpdir)
+
+    with open(os.path.join(mountdir, 'keyfile'), 'w') as f:
+        f.write(str(key))
+
+    job = engine.launch(image='docker',
+                        command='cat /mounted/keyfile',
+                        engine_options={'volumes':
+                                            {mountdir:'/mounted'}})
+    job.wait()
+    result = job.stdout.strip()
+    assert result == str(key)
+
+
+def test_readonly_docker_volume_mount(local_docker_engine, tmpdir):
+    engine = local_docker_engine
+    mountdir = str(tmpdir)
+    job = engine.launch(image='docker',
+                        command='echo blah > /mounted/blah',
+                        engine_options={'volumes':
+                                            {mountdir: ('/mounted', 'ro')}})
+    job.wait()
+    assert isinstance(job.exitcode, int)
+    assert job.exitcode != 0

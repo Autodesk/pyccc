@@ -96,7 +96,7 @@ class Docker(EngineBase):
                 binds.append('/var/run/docker.sock:/var/run/docker.sock:rw')
 
             # handle other mounted volumes
-            for volume, mount in job.engine_options.get('volumes', {}).keys():
+            for volume, mount in job.engine_options.get('volumes', {}).items():
                 if isinstance(mount, (list, tuple)):
                     mountpoint, mode = mount
                     bind = '%s:%s:%s' % (volume, mountpoint, mode)
