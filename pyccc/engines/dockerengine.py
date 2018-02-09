@@ -41,7 +41,6 @@ class Docker(EngineBase):
         self.default_wdir = workingdir
         self.hostname = self.client.base_url
 
-
     def connect_to_docker(self, client=None):
         if isinstance(client, basestring):
             client = du.get_docker_apiclient(client)
@@ -74,15 +73,47 @@ class Docker(EngineBase):
             job.workingdir = self.default_wdir
         job.imageid = du.create_provisioned_image(self.client, job.image,
                                                   job.workingdir, job.inputs)
-        cmdstring = "sh -c '%s'" % job.command
 
-        job.container = self.client.create_container(job.imageid,
-                                                     command=cmdstring,
-                                                     working_dir=job.workingdir,
-                                                     environment={'PYTHONIOENCODING':'utf-8'})
+        container_args = self._generate_container_args(job)
+
+        job.container = self.client.create_container(job.imageid, **container_args)
         self.client.start(job.container)
         job.containerid = job.container['Id']
         job.jobid = job.containerid
+
+    def _generate_container_args(self, job):
+        container_args = dict(command="sh -c '%s'" % job.command,
+                              working_dir=job.workingdir,
+                              environment={'PYTHONIOENCODING':'utf-8'})
+
+        if job.engine_options:
+            volumes = []
+            binds = []
+
+            # mount the docker socket into the container
+            if job.engine_options.get('mount_docker_socket', False):
+                volumes.append('/var/run/docker.sock')
+                binds.append('/var/run/docker.sock:/var/run/docker.sock:rw')
+
+            # handle other mounted volumes
+            for volume, mount in job.engine_options.get('volumes', {}).items():
+                if isinstance(mount, (list, tuple)):
+                    mountpoint, mode = mount
+                    bind = '%s:%s:%s' % (volume, mountpoint, mode)
+                else:
+                    mountpoint = mount
+                    mode = None
+                    bind = '%s:%s' % (volume, mountpoint)
+
+                volumes.append(mountpoint)
+                binds.append(bind)
+
+            if volumes or binds:
+                container_args['volumes'] = volumes
+                container_args['host_config'] = self.client.create_host_config(binds=binds)
+
+        return container_args
+
 
     def wait(self, job):
         return self.client.wait(job.container)

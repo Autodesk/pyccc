@@ -1,5 +1,5 @@
 chardet
-docker > 2.0
+docker >=2.0,<3.0
 funcsigs ; python_version < '3.3'
 future
 requests
