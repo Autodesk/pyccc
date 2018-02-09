@@ -344,3 +344,15 @@ def _runcall(fixture, request, function, *args, **kwargs):
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
     job.wait()
     return job.result
+
+
+def test_docker_socket_mount(local_docker_engine):
+    engine = local_docker_engine
+
+    job = engine.launch(image='docker',
+                        command='docker ps -q --no-trunc',
+                        engine_options={'mount_docker_socket': True})
+    job.wait()
+    running = job.stdout.strip().splitlines()
+    assert job.jobid in running
+
