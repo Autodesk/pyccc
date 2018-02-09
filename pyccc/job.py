@@ -68,6 +68,7 @@ class Job(object):
             locally once, when this job completes
         numcpus (int): number of CPUs required (default:1)
         runtime (int): kill job if the runtime exceeds this value (in seconds) (default: 1 hour)`
+        engine_options (dict): additional engine-specific options
     """
     def __init__(self, engine=None,
                  image=None,
@@ -79,12 +80,14 @@ class Job(object):
                  numcpus=1,
                  runtime=3600,
                  on_status_update=None,
-                 when_finished=None):
+                 when_finished=None,
+                 engine_options=None):
 
         self.name = name
         self.engine = engine
         self.image = image
         self.command = if_not_none(command, '')
+        self.engine_options = engine_options
 
         self.inputs = inputs
         if self.inputs is not None:  # translate strings into file objects
