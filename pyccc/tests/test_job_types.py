@@ -357,27 +357,37 @@ def test_docker_socket_mount(local_docker_engine):
     assert job.jobid in running
 
 
-def test_docker_volume_mount(local_docker_engine, tmpdir):
-    import os, uuid
+def test_docker_volume_mount(local_docker_engine):
+    """
+    Note:
+        The test context is not necessarily the same as the bind mount context!
+        These tests will run in containers themselves, so we can't assume
+        that any directories accessible to the tests are bind-mountable.
+
+        Therefore we just test a named volume here.
+    """
+    import subprocess, uuid
     engine = local_docker_engine
     key = uuid.uuid4()
-    mountdir = str(tmpdir)
+    volname = 'my-mounted-volume'
 
-    with open(os.path.join(mountdir, 'keyfile'), 'w') as f:
-        f.write(str(key))
+    # Create a named volume with a file named "keyfile" containing a random uuid4
+    subprocess.check_call(('docker volume rm {vn}; docker volume create {vn}; '
+                          'docker run -v {vn}:/mounted alpine sh -c "echo {k} > /mounted/keyfile"')
+                          .format(vn=volname, k=key),
+                          shell=True)
 
     job = engine.launch(image='docker',
                         command='cat /mounted/keyfile',
-                        engine_options={'volumes':
-                                            {mountdir:'/mounted'}})
+                        engine_options={'volumes': {volname: '/mounted'}})
     job.wait()
     result = job.stdout.strip()
     assert result == str(key)
 
 
-def test_readonly_docker_volume_mount(local_docker_engine, tmpdir):
+def test_readonly_docker_volume_mount(local_docker_engine):
     engine = local_docker_engine
-    mountdir = str(tmpdir)
+    mountdir = '/tmp'
     job = engine.launch(image='docker',
                         command='echo blah > /mounted/blah',
                         engine_options={'volumes':
