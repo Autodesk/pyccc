@@ -1,7 +1,7 @@
 import pytest
 import pyccc
 
-__all__ = 'typedfixture fixture_types subprocess_engine public_ccc_engine local_docker_engine'.split()
+__all__ = 'typedfixture fixture_types subprocess_engine local_docker_engine'.split()
 
 fixture_types = {}
 
@@ -25,14 +25,6 @@ def typedfixture(*types, **kwargs):
 @typedfixture('engine')
 def subprocess_engine():
     return pyccc.Subprocess()
-
-
-@typedfixture('engine')
-def public_ccc_engine():
-    if not pytest.config.getoption("--testccc"):
-        pytest.skip("need --testccc option to run")
-    else:
-        return pyccc.CloudComputeCannon('cloudcomputecannon.bionano.autodesk.com:9000')
 
 
 @typedfixture('engine')

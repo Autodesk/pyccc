@@ -20,9 +20,9 @@ from past.builtins import basestring
 import subprocess
 
 import docker
-from pyccc import docker_utils as du, DockerMachineError
-from pyccc import utils, files
-from . import EngineBase, status
+from .. import docker_utils as du, DockerMachineError
+from .. import utils, files, status
+from . import EngineBase
 
 
 class Docker(EngineBase):
