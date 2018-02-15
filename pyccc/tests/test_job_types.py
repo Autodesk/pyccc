@@ -404,3 +404,20 @@ def test_set_workingdir_docker(local_docker_engine):
     job = engine.launch(image='docker', command='pwd', workingdir='/testtest-dir-test')
     job.wait()
     assert job.stdout.strip() == '/testtest-dir-test'
+
+
+def test_set_workingdir_subprocess(subprocess_engine, tmpdir):
+    engine = subprocess_engine
+    job = engine.launch(image=None, command='pwd', workingdir=str(tmpdir))
+    job.wait()
+    assert job.stdout.strip() == str(tmpdir)
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_clean_working_dir(fixture, request):
+    """ Because of some weird results that seemed to indicate the wrong run dir
+    """
+    engine = request.getfuncargvalue(fixture)
+    job = engine.launch(image='alpine', command='ls')
+    job.wait()
+    assert job.stdout.strip() == ''

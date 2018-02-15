@@ -59,7 +59,7 @@ class Subprocess(EngineBase):
 
     def submit(self, job):
         self._check_job(job)
-        if job.workingdir is not None:
+        if job.workingdir is None:
             job.workingdir = utils.make_local_temp_dir()
         if job.inputs:
             for filename, f in job.inputs.items():
