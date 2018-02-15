@@ -397,3 +397,10 @@ def test_readonly_docker_volume_mount(local_docker_engine):
     job.wait()
     assert isinstance(job.exitcode, int)
     assert job.exitcode != 0
+
+
+def test_set_workingdir_docker(local_docker_engine):
+    engine = local_docker_engine
+    job = engine.launch(image='docker', command='pwd', workingdir='/testtest-dir-test')
+    job.wait()
+    assert job.stdout.strip() == '/testtest-dir-test'

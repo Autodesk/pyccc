@@ -44,7 +44,7 @@ class Subprocess(EngineBase):
         job = self.launch(command='echo check12')
         job.wait()
         if job.stdout.strip() != 'check12':
-            raise
+            raise ConnectionError()
 
     def get_engine_description(self, job):
         """
@@ -59,7 +59,8 @@ class Subprocess(EngineBase):
 
     def submit(self, job):
         self._check_job(job)
-        job.workingdir = utils.make_local_temp_dir()
+        if job.workingdir is not None:
+            job.workingdir = utils.make_local_temp_dir()
         if job.inputs:
             for filename, f in job.inputs.items():
                 f.put(os.path.join(job.workingdir, filename))

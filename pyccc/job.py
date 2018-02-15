@@ -69,6 +69,8 @@ class Job(object):
         numcpus (int): number of CPUs required (default:1)
         runtime (int): kill job if the runtime exceeds this value (in seconds) (default: 1 hour)`
         engine_options (dict): additional engine-specific options
+        workingdir (str): working directory in the execution environment (i.e., on the local
+            system for a subprocess, or inside the container for a docker engine)
     """
     def __init__(self, engine=None,
                  image=None,
@@ -81,6 +83,7 @@ class Job(object):
                  runtime=3600,
                  on_status_update=None,
                  when_finished=None,
+                 workingdir=None,
                  engine_options=None):
 
         self.name = name
@@ -88,6 +91,7 @@ class Job(object):
         self.image = image
         self.command = if_not_none(command, '')
         self.engine_options = engine_options
+        self.workingdir = workingdir
 
         self.inputs = inputs
         if self.inputs is not None:  # translate strings into file objects

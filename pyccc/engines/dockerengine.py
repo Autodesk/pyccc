@@ -28,7 +28,7 @@ from . import EngineBase
 class Docker(EngineBase):
     """ A compute engine - uses a docker server to run jobs
     """
-    def __init__(self, client=None, workingdir='/default_wdir'):
+    def __init__(self, client=None, workingdir='/workingdir'):
         """ Initialization:
 
         Args:
@@ -69,7 +69,7 @@ class Docker(EngineBase):
         """
         self._check_job(job)
 
-        if not hasattr(job, 'workingdir'):
+        if job.workingdir is None:
             job.workingdir = self.default_wdir
         job.imageid = du.create_provisioned_image(self.client, job.image,
                                                   job.workingdir, job.inputs)
