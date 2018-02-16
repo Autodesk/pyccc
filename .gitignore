@@ -12,4 +12,4 @@ env.private
 codeship.aes
 .cache
 __pycache__
-
+README.rst

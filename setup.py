@@ -21,18 +21,11 @@ Operating System :: Unix
 Operating System :: MacOS
 """
 
-
 PYEXT = set('.py .pyc .pyo'.split())
 
 
 with open('requirements.txt', 'r') as reqfile:
     requirements = [x.strip() for x in reqfile if x.strip()]
-
-try:
-    long_description = subprocess.check_output('pandoc --from=markdown --to=rst README.md'.split())
-except Exception as e:
-    print('Failed to execute pandoc: long_description field not generated')
-    long_description = 'pyccc!'
 
 setup(
     name=PACKAGE_NAME,
@@ -45,7 +38,6 @@ setup(
     setup_requires=['pandoc'],
     url='http://github.com/autodesk/py-cloud-compute-cannon',
     license='Apache 2.0',
-    long_description=long_description,
     author='Aaron Virshup and Dion Amago, Autodesk Life Sciences',
     author_email='moleculardesigntoolkit@autodesk.com',
     description='Library for managing docker container jobs and input/output files)'
