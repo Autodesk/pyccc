@@ -1,4 +1,5 @@
 *.pyo
+.eggs
 *.bak
 *.pyc
 .ipynb_checkpoints

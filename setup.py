@@ -1,7 +1,6 @@
-import sys
 from setuptools import find_packages, setup
+import subprocess
 import versioneer
-
 
 PACKAGE_NAME = 'pyccc'
 
@@ -22,12 +21,18 @@ Operating System :: Unix
 Operating System :: MacOS
 """
 
+
 PYEXT = set('.py .pyc .pyo'.split())
 
 
 with open('requirements.txt', 'r') as reqfile:
     requirements = [x.strip() for x in reqfile if x.strip()]
 
+try:
+    long_description = subprocess.check_output('pandoc --from=markdown --to=rst README.md'.split())
+except subprocess.CalledProcessError:
+    print('Failed to execute pandoc: long_description field not generated')
+    long_description = 'missing'
 
 setup(
     name=PACKAGE_NAME,
@@ -37,10 +42,11 @@ setup(
     include_package_data=True,
     cmdclass=versioneer.get_cmdclass(),
     install_requires=requirements,
+    setup_requires=['pandoc'],
     url='http://github.com/autodesk/py-cloud-compute-cannon',
     license='Apache 2.0',
-    author='Aaron Virshup and Dion Amago, BioNano Research at Autodesk',
+    long_description=long_description,
+    author='Aaron Virshup and Dion Amago, Autodesk Life Sciences',
     author_email='moleculardesigntoolkit@autodesk.com',
-    description='PyCloudComputeCannon: Python bindings for CloudComputeCannon (with support for other computational '
-                'engines)'
+    description='Library for managing docker container jobs and input/output files)'
 )
