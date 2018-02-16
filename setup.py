@@ -30,9 +30,9 @@ with open('requirements.txt', 'r') as reqfile:
 
 try:
     long_description = subprocess.check_output('pandoc --from=markdown --to=rst README.md'.split())
-except subprocess.CalledProcessError:
+except Exception as e:
     print('Failed to execute pandoc: long_description field not generated')
-    long_description = 'missing'
+    long_description = 'pyccc!'
 
 setup(
     name=PACKAGE_NAME,
