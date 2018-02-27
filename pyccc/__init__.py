@@ -1,4 +1,4 @@
-# Copyright 2016 Autodesk Inc.
+# Copyright 2016-2018 Autodesk Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,5 +30,5 @@ from pyccc.files import *
 # Package metadata
 from pyccc import _version
 __version__ = _version.get_versions()['version']
-__copyright__ = "Copyright 2016 Autodesk Inc."
+__copyright__ = "Copyright 2016-2018 Autodesk Inc."
 __license__ = "Apache 2.0"

@@ -1,4 +1,4 @@
-# Copyright 2016 Autodesk Inc.
+# Copyright 2016-2018 Autodesk Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -113,7 +113,6 @@ class Docker(EngineBase):
                 container_args['host_config'] = self.client.create_host_config(binds=binds)
 
         return container_args
-
 
     def wait(self, job):
         return self.client.wait(job.container)
