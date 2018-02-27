@@ -456,3 +456,18 @@ def test_directory_input(fixture, request):
     assert job.exitcode == 0
     assert job.stdout.strip() == 'a\nb'
 
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_passing_files_between_jobs(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+
+    # this is OK with docker but should fail with a subprocess
+    job1 = engine.launch(image='alpine', command='echo hello > world')
+    job1.wait()
+    assert job1.exitcode == 0
+
+    job2 = engine.launch(image='alpine', command='cat helloworld',
+                         inputs={'helloworld': job1.get_output('world')})
+    job2.wait()
+    assert job2.exitcode == 0
+    assert job2.stdout.strip() == 'hello'
