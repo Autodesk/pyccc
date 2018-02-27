@@ -443,3 +443,16 @@ def test_abspath_input_files(fixture, request):
         assert job.exitcode == 0
         assert job.stdout.strip() == 'a'
 
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_directory_input(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+
+    # this is OK with docker but should fail with a subprocess
+    job = engine.launch(image='alpine', command='cat data/a data/b',
+                        inputs={'data':
+                                    pyccc.LocalDirectoryReference(os.path.join(THISDIR, 'data'))})
+    job.wait()
+    assert job.exitcode == 0
+    assert job.stdout.strip() == 'a\nb'
+

@@ -58,7 +58,6 @@ class Subprocess(EngineBase):
         return super(Subprocess, self).launch('no_image', command, **kwargs)
 
     def submit(self, job):
-        import pathlib
         self._check_job(job)
         if job.workingdir is None:
             job.workingdir = utils.make_local_temp_dir()

@@ -12,4 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-class DirectoryReference(object): pass
+
+class LocalDirectoryReference(object):
+    """ This is a reference to a specific directory on the local filesystem.
+
+    This allows entire directories to be staged into the dockerfile as input
+    """
+    def __init__(self, localpath):
+        self.localpath = localpath
+
+    def put(self, destination):
+        import shutil
+        shutil.copytree(self.localpath, destination)
