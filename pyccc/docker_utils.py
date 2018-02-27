@@ -22,16 +22,23 @@ import os
 import subprocess
 import io
 import tarfile
+import tempfile
+import gzip
 
 import pyccc
 
 from .exceptions import DockerMachineError
+from . import files
 
 
 def create_provisioned_image(client, image, wdir, inputs, pull=False):
     build_context = create_build_context(image, inputs, wdir)
-    tarobj = make_tar_stream(build_context)
-    imageid = build_dfile_stream(client, tarobj, is_tar=True, pull=pull)
+    with tempfile.NamedTemporaryFile(suffix='.tar.gz', mode='wb') as tfile:
+        gzstream = gzip.GzipFile(fileobj=tfile, mode='wb')
+        make_tar_stream(build_context, gzstream)
+        gzstream.flush()
+        tfile.flush()
+        imageid = build_dfile_stream(client, tfile.name, pull=pull)
     return imageid
 
 
@@ -40,26 +47,38 @@ def create_build_context(image, inputs, wdir):
     Creates a tar archive with a dockerfile and a directory called "inputs"
     The Dockerfile will copy the "inputs" directory to the chosen working directory
     """
-    dockerstring = "FROM %s" % image
+    assert os.path.isabs(wdir)
 
+    dockerlines = ["FROM %s" % image,
+                    "RUN mkdir -p %s" % wdir]
     build_context = {}
+
+    # This loop: 1) adds dockerfile commands to put each input file in the right place, and
+    #            2) adds the files to the build context that gets sent to the daemon
     if inputs:
-        dockerstring += "\nCOPY inputs %s\n" % wdir
-        for name, obj in inputs.items():
-            build_context['inputs/%s' % name] = obj
-    else:
-        dockerstring += "\nRUN mkdir -p %s\n" % wdir
+        for path, obj in inputs.items():
+            src = path.replace('/', '--')  # brittle mangling to avoid collisions
+            if os.path.isabs(path):
+                dest = path
+            else:
+                dest = os.path.join(wdir, path)
+            dockerlines.append('ADD %s %s' % (src, dest))
+            build_context[src] = obj
 
+    dockerstring = '\n'.join(dockerlines)
     build_context['Dockerfile'] = pyccc.BytesContainer(dockerstring.encode('utf-8'))
-
     return build_context
 
 
-def build_dfile_stream(client, dfilestream, is_tar=False, **kwargs):
-    buildcmd = client.build(fileobj=dfilestream,
-                            rm=True,
-                            custom_context=is_tar,
-                            **kwargs)
+def build_dfile_stream(client, dfilepath, **kwargs):
+    # dfilepath is the path to the already .tgz-archived build context
+
+    with open(dfilepath, 'rb') as dfilestream:
+        buildcmd = client.build(fileobj=dfilestream,
+                                rm=True,
+                                custom_context=True,
+                                encoding='gzip',
+                                **kwargs)
 
     # this blocks until the image is done building
     for x in buildcmd:
@@ -104,23 +123,20 @@ def _issue1134_helper(x):
     return s[rootbrace: endbrace+1]
 
 
-def make_tar_stream(sdict):
-    """ Create a file-like tarfile object
+def make_tar_stream(build_context, buffer):
+    """ Write a tar stream of the build context to the provided buffer
 
     Args:
-        sdict (Mapping[str, pyccc.FileReferenceBase]): dict mapping filenames to file references
-
-    Returns:
-        Filelike: TarFile stream
+        build_context (Mapping[str, pyccc.FileReferenceBase]): dict mapping filenames to file references
+        buffer (io.BytesIO): writable binary mode buffer
     """
-    # TODO: this is currently done in memory - bad for big files!
-    tarbuffer = io.BytesIO()
-    tf = tarfile.TarFile(fileobj=tarbuffer, mode='w')
-    for name, fileobj in sdict.items():
-        tar_add_bytes(tf, name, fileobj.read('rb'))
+    tf = tarfile.TarFile(fileobj=buffer, mode='w')
+    for context_path, fileobj in build_context.items():
+        if isinstance(fileobj, files.DirectoryReference):
+            tf.add(fileobj.path, arcname=context_path)
+        else:
+            tar_add_bytes(tf, context_path, fileobj.read('rb'))
     tf.close()
-    tarbuffer.seek(0)
-    return tarbuffer
 
 
 def tar_add_bytes(tf, filename, bytestring):

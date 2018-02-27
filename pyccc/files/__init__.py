@@ -8,3 +8,4 @@ from .bytecontainer import *
 from .stringcontainer import *
 from .localfiles import *
 from .remotefiles import *
+from .directory import *
