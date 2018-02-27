@@ -121,6 +121,7 @@ def test_containers_are_pickleable(fixture, request):
 
 def test_local_directory_reference(tmpdir):
     import filecmp
+    tmpdir = str(tmpdir)
     src = os.path.join(THISDIR, 'data')
     localdir = pyccc.files.LocalDirectoryReference(src)
     target = os.path.join(tmpdir, 'data')
