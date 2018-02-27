@@ -10,6 +10,7 @@ from . import function_tests
 
 PYVERSION = '%s.%s' % (sys.version_info.major, sys.version_info.minor)
 PYIMAGE = 'python:%s-slim' % PYVERSION
+THISDIR = os.path.dirname(__file__)
 
 
 ########################
@@ -421,3 +422,37 @@ def test_clean_working_dir(fixture, request):
     job = engine.launch(image='alpine', command='ls')
     job.wait()
     assert job.stdout.strip() == ''
+
+
+class no_context():  # context manager that does nothing that can be used conditionaly
+    def __enter__(self):
+        return None
+    def __exit__(self, exc_type, exc_value, traceback):
+        return False
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_abspath_input_files(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+    with pytest.raises(ValueError) if isinstance(engine, pyccc.Subprocess) else no_context():
+        # this is OK with docker but should fail with a subprocess
+        job = engine.launch(image='alpine', command='cat /opt/a',
+                            inputs={'/opt/a': pyccc.LocalFile(os.path.join(THISDIR, 'data', 'a'))})
+    if not isinstance(engine, pyccc.Subprocess):
+        job.wait()
+        assert job.exitcode == 0
+        assert job.stdout.strip() == 'a'
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_directory_input(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+
+    # this is OK with docker but should fail with a subprocess
+    job = engine.launch(image='alpine', command='cat data/a data/b',
+                        inputs={'data':
+                                    pyccc.LocalDirectoryReference(os.path.join(THISDIR, 'data'))})
+    job.wait()
+    assert job.exitcode == 0
+    assert job.stdout.strip() == 'a\nb'
+

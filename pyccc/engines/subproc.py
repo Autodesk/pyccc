@@ -61,8 +61,11 @@ class Subprocess(EngineBase):
         self._check_job(job)
         if job.workingdir is None:
             job.workingdir = utils.make_local_temp_dir()
+
+        assert os.path.isabs(job.workingdir)
         if job.inputs:
             for filename, f in job.inputs.items():
+                self._check_input_target_location(filename, job.workingdir)
                 f.put(os.path.join(job.workingdir, filename))
 
         subenv = os.environ.copy()
@@ -76,6 +79,20 @@ class Subprocess(EngineBase):
         job.jobid = job.subproc.pid
         job._started = True
         return job.subproc.pid
+
+    @staticmethod
+    def _check_input_target_location(filename, wdir):
+        """ Raise error if input is being staged to a location not underneath the working dir
+        """
+        p = filename
+        if not os.path.isabs(p):
+            p = os.path.join(wdir, p)
+        targetpath = os.path.realpath(p)
+        wdir = os.path.realpath(wdir)
+        common = os.path.commonprefix([wdir, targetpath])
+        if len(common) < len(wdir):
+            raise ValueError(
+                    "The subprocess engine does not support input files with absolute paths")
 
     def kill(self, job):
         job.subproc.terminate()
