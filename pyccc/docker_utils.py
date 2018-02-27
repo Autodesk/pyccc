@@ -132,7 +132,7 @@ def make_tar_stream(build_context, buffer):
     """
     tf = tarfile.TarFile(fileobj=buffer, mode='w')
     for context_path, fileobj in build_context.items():
-        if isinstance(fileobj, (files.LocalDirectoryReference, files.LocalFile)):
+        if getattr(fileobj, 'localpath', None) is not None:
             tf.add(fileobj.localpath, arcname=context_path)
         else:
             tar_add_bytes(tf, context_path, fileobj.read('rb'))

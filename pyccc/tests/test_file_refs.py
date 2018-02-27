@@ -10,6 +10,8 @@ import pyccc
 fixture_types = {}
 
 PYVERSION = sys.version_info.major
+THISDIR = os.path.dirname(__file__)
+
 
 if PYVERSION >= 3:
     unicode = str  # we'll use "unicode" and "bytes" just to be completely clear
@@ -115,3 +117,15 @@ def test_containers_are_pickleable(fixture, request):
     ctr = request.getfuncargvalue(fixture)
     newctr = pickle.loads(pickle.dumps(ctr))
     assert newctr.read() == ctr.read()
+
+
+def test_local_directory_reference(tmpdir):
+    import filecmp
+    tmpdir = str(tmpdir)
+    src = os.path.join(THISDIR, 'data')
+    localdir = pyccc.files.LocalDirectoryReference(src)
+    target = os.path.join(tmpdir, 'data')
+    localdir.put(target)
+    match, mismatch, errors = filecmp.cmpfiles(src, target, ['a', 'b'])
+    assert not mismatch
+    assert not errors
