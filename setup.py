@@ -36,9 +36,9 @@ setup(
     cmdclass=versioneer.get_cmdclass(),
     install_requires=requirements,
     setup_requires=['pandoc'],
-    url='http://github.com/autodesk/py-cloud-compute-cannon',
+    url='http://github.com/autodesk/pyccc',
     license='Apache 2.0',
     author='Aaron Virshup and Dion Amago, Autodesk Life Sciences',
     author_email='moleculardesigntoolkit@autodesk.com',
-    description='Library for managing docker container jobs and input/output files)'
+    description='Asynchronous job and file i/o management for containers)'
 )
