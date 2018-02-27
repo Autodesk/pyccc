@@ -53,11 +53,11 @@ def create_build_context(image, inputs, wdir):
                     "RUN mkdir -p %s" % wdir]
     build_context = {}
 
-    # This loop: 1) adds dockerfile commands to put each input file in the right place, and
-    #            2) adds the files to the build context that gets sent to the daemon
+    # This loop creates a Build Context for building the provisioned image
+    # Each input file is assigned a unique name, in preparation for creating a tar archive
     if inputs:
-        for path, obj in inputs.items():
-            src = path.replace('/', '--')  # brittle mangling to avoid collisions
+        for ifile, (path, obj) in enumerate(inputs.items()):
+            src = os.path.basename(path) + '-%s' % ifile  # mangling to ensure uniqueness
             if os.path.isabs(path):
                 dest = path
             else:
@@ -132,8 +132,8 @@ def make_tar_stream(build_context, buffer):
     """
     tf = tarfile.TarFile(fileobj=buffer, mode='w')
     for context_path, fileobj in build_context.items():
-        if isinstance(fileobj, files.DirectoryReference):
-            tf.add(fileobj.path, arcname=context_path)
+        if isinstance(fileobj, (files.LocalDirectoryReference, files.LocalFile)):
+            tf.add(fileobj.localpath, arcname=context_path)
         else:
             tar_add_bytes(tf, context_path, fileobj.read('rb'))
     tf.close()
