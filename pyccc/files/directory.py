@@ -131,6 +131,7 @@ class DockerArchive(DirectoryArchive, LazyDockerCopy):
     def __init__(self, *args, **kwargs):
         LazyDockerCopy.__init__(self, *args, **kwargs)
         self.archive_path = None
+        self.dirname = self.basename
 
     def put(self, destination):
         """ Copy the referenced directory to this path
@@ -138,10 +139,9 @@ class DockerArchive(DirectoryArchive, LazyDockerCopy):
         Args:
             destination (str): path to put this directory (which must NOT already exist)
         """
-        target = _get_target_path(destination, self.basename)
         if not self._fetched:
             self._fetch()
-        DirectoryArchive.put(self, target)
+        DirectoryArchive.put(self, destination)
 
     put.__doc__ = DirectoryArchive.put.__doc__
 
