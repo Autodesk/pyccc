@@ -33,33 +33,51 @@ LINES_CONTENT = ['abcd\n',
                  '1234']
 
 
-@typedfixture('container')
+@typedfixture('file_ref')
 def bytescontainer():
     return pyccc.files.BytesContainer(BYTES_CONTENT)
 
 
-@typedfixture('container')
+@typedfixture('file_ref')
 def stringcontainer():
     return pyccc.files.StringContainer(STRING_CONTENT)
 
 
-@typedfixture('container')
+@typedfixture('file_ref')
 def localfile_from_bytes(bytescontainer, tmpdir):
     return bytescontainer.put(os.path.join(str(tmpdir), 'bytesfile'))
 
 
-@typedfixture('container')
+@typedfixture('file_ref')
 def localfile_from_string(stringcontainer, tmpdir):
     return stringcontainer.put(os.path.join(str(tmpdir), 'strfile'))
 
 
-@typedfixture('container')
+@typedfixture('file_ref')
 def localfile_in_memory(bytescontainer, tmpdir):
     localfile = bytescontainer.put(os.path.join(str(tmpdir), 'bytefile'))
     return pyccc.FileContainer(localfile.localpath)
 
 
-@pytest.mark.parametrize('fixture', fixture_types['container'])
+@typedfixture('file_ref')
+def http_reference(httpserver):
+    httpserver.serve_content(BYTES_CONTENT)
+    ref = pyccc.HttpContainer(httpserver.url)
+    return ref
+
+
+@typedfixture('file_ref')
+def docker_output_reference():
+    import pyccc
+    engine = pyccc.engines.Docker()
+    job = engine.launch(image='alpine',
+                        inputs={"/in.txt": BYTES_CONTENT},
+                        command="cp /in.txt /out.txt")
+    job.wait()
+    return job.get_output('/out.txt')
+
+
+@pytest.mark.parametrize('fixture', fixture_types['file_ref'])
 def test_file_container(fixture, request):
     my_container = request.getfuncargvalue(fixture)
     assert list(my_container) == LINES_CONTENT
@@ -67,7 +85,7 @@ def test_file_container(fixture, request):
     assert my_container.read('rb') == BYTES_CONTENT
 
 
-@pytest.mark.parametrize('fixture', fixture_types['container'])
+@pytest.mark.parametrize('fixture', fixture_types['file_ref'])
 def test_containers_open_filelike_object(fixture, request):
     ctr = request.getfuncargvalue(fixture)
     assert list(ctr.open('r')) == LINES_CONTENT
@@ -112,7 +130,7 @@ def test_stringcontainer_handles_bytes(encoding):
     assert readbin.decode(encoding) == angstrom
 
 
-@pytest.mark.parametrize('fixture', fixture_types['container'])
+@pytest.mark.parametrize('fixture', fixture_types['file_ref'])
 def test_containers_are_pickleable(fixture, request):
     ctr = request.getfuncargvalue(fixture)
     newctr = pickle.loads(pickle.dumps(ctr))
