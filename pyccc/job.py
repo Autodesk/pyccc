@@ -245,6 +245,18 @@ class Job(object):
         if filename: return self._output_files[filename]
         else: return self._output_files
 
+    def get_directory(self, path):
+        """
+        Get a reference to the directory at the specified path
+
+        Note:
+            This function will succeed even if the specified path
+            does not exist, as it just generates a reference. You won't
+            encounter an exception until you actually try to access the
+            non-existent file
+        """
+        return self.engine.get_directory(self, path)
+
     def glob_output(self, pattern):
         """ Return dict of all files that match the glob pattern
         """

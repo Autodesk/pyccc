@@ -65,8 +65,8 @@ class Subprocess(EngineBase):
         assert os.path.isabs(job.workingdir)
         if job.inputs:
             for filename, f in job.inputs.items():
-                self._check_input_target_location(filename, job.workingdir)
-                f.put(os.path.join(job.workingdir, filename))
+                targetpath = self._check_file_is_under_workingdir(filename, job.workingdir)
+                f.put(targetpath)
 
         subenv = os.environ.copy()
         subenv['PYTHONIOENCODING'] = 'utf-8'
@@ -81,7 +81,7 @@ class Subprocess(EngineBase):
         return job.subproc.pid
 
     @staticmethod
-    def _check_input_target_location(filename, wdir):
+    def _check_file_is_under_workingdir(filename, wdir):
         """ Raise error if input is being staged to a location not underneath the working dir
         """
         p = filename
@@ -93,12 +93,17 @@ class Subprocess(EngineBase):
         if len(common) < len(wdir):
             raise ValueError(
                     "The subprocess engine does not support input files with absolute paths")
+        return p
 
     def kill(self, job):
         job.subproc.terminate()
 
     def wait(self, job):
         return job.subproc.wait()
+
+    def get_directory(self, job, path):
+        targetpath = self._check_file_is_under_workingdir(path, job.workingdir)
+        return files.LocalDirectoryReference(targetpath)
 
     def _list_output_files(self, job, dir=None):
         if dir is None: dir = job.workingdir

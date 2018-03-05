@@ -2,8 +2,9 @@
 import os
 import sys
 import pickle
+
+import itertools
 import pytest
-import uuid
 
 import pyccc
 
@@ -33,33 +34,60 @@ LINES_CONTENT = ['abcd\n',
                  '1234']
 
 
-@typedfixture('container')
+@typedfixture('file_ref')
 def bytescontainer():
     return pyccc.files.BytesContainer(BYTES_CONTENT)
 
 
-@typedfixture('container')
+@typedfixture('file_ref')
 def stringcontainer():
     return pyccc.files.StringContainer(STRING_CONTENT)
 
+def _make_subtempdir(tmpdir):
+    """ Makes a temp dir UNDERNEATH the current tempdir
+    """
+    subtempdir = os.path.join(str(tmpdir), 'fixture_tmp')
+    os.mkdir(subtempdir)
+    return subtempdir
 
-@typedfixture('container')
+@typedfixture('file_ref')
 def localfile_from_bytes(bytescontainer, tmpdir):
-    return bytescontainer.put(os.path.join(str(tmpdir), 'bytesfile'))
+    subtempdir = _make_subtempdir(tmpdir)
+    return bytescontainer.put(os.path.join(subtempdir, 'bytesfile'))
 
 
-@typedfixture('container')
+@typedfixture('file_ref')
 def localfile_from_string(stringcontainer, tmpdir):
-    return stringcontainer.put(os.path.join(str(tmpdir), 'strfile'))
+    subtempdir = _make_subtempdir(tmpdir)
+    return stringcontainer.put(os.path.join(subtempdir, 'strfile'))
 
 
-@typedfixture('container')
+@typedfixture('file_ref')
 def localfile_in_memory(bytescontainer, tmpdir):
-    localfile = bytescontainer.put(os.path.join(str(tmpdir), 'bytefile'))
+    subtempdir = _make_subtempdir(tmpdir)
+    localfile = bytescontainer.put(os.path.join(subtempdir, 'bytefile'))
     return pyccc.FileContainer(localfile.localpath)
 
 
-@pytest.mark.parametrize('fixture', fixture_types['container'])
+@typedfixture('file_ref')
+def http_reference(httpserver):
+    httpserver.serve_content(BYTES_CONTENT)
+    ref = pyccc.HttpContainer(httpserver.url)
+    return ref
+
+
+@typedfixture('file_ref')
+def docker_output_reference():
+    import pyccc
+    engine = pyccc.engines.Docker()
+    job = engine.launch(image='alpine',
+                        inputs={"/in.txt": BYTES_CONTENT},
+                        command="cp /in.txt /out.txt")
+    job.wait()
+    return job.get_output('/out.txt')
+
+
+@pytest.mark.parametrize('fixture', fixture_types['file_ref'])
 def test_file_container(fixture, request):
     my_container = request.getfuncargvalue(fixture)
     assert list(my_container) == LINES_CONTENT
@@ -67,7 +95,7 @@ def test_file_container(fixture, request):
     assert my_container.read('rb') == BYTES_CONTENT
 
 
-@pytest.mark.parametrize('fixture', fixture_types['container'])
+@pytest.mark.parametrize('fixture', fixture_types['file_ref'])
 def test_containers_open_filelike_object(fixture, request):
     ctr = request.getfuncargvalue(fixture)
     assert list(ctr.open('r')) == LINES_CONTENT
@@ -112,20 +140,37 @@ def test_stringcontainer_handles_bytes(encoding):
     assert readbin.decode(encoding) == angstrom
 
 
-@pytest.mark.parametrize('fixture', fixture_types['container'])
+@pytest.mark.parametrize('fixture', fixture_types['file_ref'])
 def test_containers_are_pickleable(fixture, request):
     ctr = request.getfuncargvalue(fixture)
     newctr = pickle.loads(pickle.dumps(ctr))
     assert newctr.read() == ctr.read()
 
 
-def test_local_directory_reference(tmpdir):
-    import filecmp
+@pytest.mark.parametrize(['fixture', 'putdir'],
+                         itertools.product(fixture_types['file_ref'],
+                                           ['', 'my_file.txt']))
+def test_put_file_to_location(request, fixture, tmpdir, putdir):
     tmpdir = str(tmpdir)
-    src = os.path.join(THISDIR, 'data')
-    localdir = pyccc.files.LocalDirectoryReference(src)
-    target = os.path.join(tmpdir, 'data')
-    localdir.put(target)
-    match, mismatch, errors = filecmp.cmpfiles(src, target, ['a', 'b'])
-    assert not mismatch
-    assert not errors
+    fileref = request.getfixturevalue(fixture)
+
+    if fileref.__class__ in (pyccc.BytesContainer, pyccc.StringContainer) and not putdir:
+        with pytest.raises(ValueError):
+            fileref.put(tmpdir)
+        return  # these classes need explicit filenames for put
+
+    if putdir:
+        target = os.path.join(tmpdir, putdir)
+        destination = target
+    else:
+        target = os.path.join(tmpdir, os.path.basename(fileref.source))
+        destination = tmpdir
+
+    assert not os.path.exists(target)
+    fileref.put(destination)
+    assert os.path.exists(target)
+
+    with open(target, 'r') as ff:
+        assert ff.read() == STRING_CONTENT
+    with open(target, 'rb') as ff:
+        assert ff.read() == BYTES_CONTENT

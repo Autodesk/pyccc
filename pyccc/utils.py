@@ -45,9 +45,8 @@ def wget(url):
     """
     Download the page into a string
     """
-    import urllib.request, urllib.error, urllib.parse
+    import urllib.parse
     request = urllib.request.urlopen(url)
-    ":type: urllib2.req"
     filestring = request.read()
     return filestring
 

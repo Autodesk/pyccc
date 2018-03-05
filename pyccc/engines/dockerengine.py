@@ -127,6 +127,11 @@ class Docker(EngineBase):
         else:
             return status.FINISHED
 
+    def get_directory(self, job, path):
+        docker_host = du.kwargs_from_client(self.client)
+        remotedir = files.DockerArchive(docker_host, job.containerid, path)
+        return remotedir
+
     def _list_output_files(self, job):
         docker_diff = self.client.diff(job.container)
         if docker_diff is None:
@@ -156,22 +161,3 @@ class Docker(EngineBase):
         stdout = self.client.logs(job.container, stdout=True, stderr=False)
         stderr = self.client.logs(job.container, stdout=False, stderr=True)
         return stdout.decode('utf-8'), stderr.decode('utf-8')
-
-
-class DockerMachine(Docker):
-    """ Convenience class for connecting to a docker machine.
-    """
-    def __init__(self, machinename):
-        self.machinename = machinename
-        client = du.docker_machine_client(machine_name=machinename)
-
-        machstat = subprocess.check_output(['docker-machine', 'status', machinename]).strip()
-        if machstat != 'Running':
-            raise DockerMachineError('WARNING: docker-machine %s returned status: "%s"' %
-                                     (machinename, status))
-
-        super(DockerMachine, self).__init__(client)
-
-    def __str__(self):
-        return "%s engine on '%s' at %s" % (type(self).__name__, self.machinename,
-                                            self.hostname)
