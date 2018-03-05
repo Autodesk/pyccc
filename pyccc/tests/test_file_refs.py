@@ -118,14 +118,3 @@ def test_containers_are_pickleable(fixture, request):
     newctr = pickle.loads(pickle.dumps(ctr))
     assert newctr.read() == ctr.read()
 
-
-def test_local_directory_reference(tmpdir):
-    import filecmp
-    tmpdir = str(tmpdir)
-    src = os.path.join(THISDIR, 'data')
-    localdir = pyccc.files.LocalDirectoryReference(src)
-    target = os.path.join(tmpdir, 'data')
-    localdir.put(target)
-    match, mismatch, errors = filecmp.cmpfiles(src, target, ['a', 'b'])
-    assert not mismatch
-    assert not errors
