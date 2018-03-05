@@ -28,7 +28,7 @@ if ENCODING == 'ascii':
     ENCODING = 'utf-8'
 
 
-def get_tempfile():
+def get_tempfile(**kwargs):
     if not os.path.exists(CACHEDIR):
         if PY2:
             try:
@@ -38,7 +38,7 @@ def get_tempfile():
                     raise
         else:
             os.makedirs(CACHEDIR, exist_ok=True)
-    tmpfile = tempfile.NamedTemporaryFile(dir=CACHEDIR, delete=False)
+    tmpfile = tempfile.NamedTemporaryFile(dir=CACHEDIR, delete=False, **kwargs)
     return tmpfile
 
 

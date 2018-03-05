@@ -105,14 +105,15 @@ class CachedFile(LocalFile):
         self.localpath = self._open_tmpfile()
         filecontainer.put(self.localpath)
 
-    def _open_tmpfile(self):
+    def _open_tmpfile(self, **kwargs):
         """
         Open a temporary, unique file in CACHEDIR (/tmp/cyborgcache) by default.
         Leave it open, assign file handle to self.tmpfile
+
+        **kwargs are passed to tempfile.NamedTemporaryFile
         """
-        tmpfile = get_tempfile()
-        path = tmpfile.name
-        self.tmpfile = tmpfile
+        self.tmpfile = get_tempfile(**kwargs)
+        path = self.tmpfile.name
         return path
 
     def __str__(self):
