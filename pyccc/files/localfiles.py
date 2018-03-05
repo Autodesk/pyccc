@@ -21,7 +21,7 @@ import os
 import shutil
 import socket
 
-from . import BytesContainer, StringContainer, get_tempfile
+from . import BytesContainer, StringContainer, get_tempfile, get_target_path
 
 
 class FileContainer(BytesContainer):
@@ -71,10 +71,11 @@ class LocalFile(FileContainer):
         self.encoded_with = encoded_with
 
     def put(self, filename, encoding=None):
+        target = get_target_path(filename, self.source)
         if encoding is not None:
             raise ValueError('Cannot encode as %s - this file is already encoded')
-        shutil.copy(self.localpath, filename)
-        return LocalFile(filename)
+        shutil.copy(self.localpath, target)
+        return LocalFile(target)
 
     def open(self, mode='r', encoding=None):
         """Return file-like object (actually opens the file for this class)"""

@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import print_function, unicode_literals, absolute_import, division
+
+import shutil
+
 from future import standard_library
 standard_library.install_aliases()
 from future.builtins import *
@@ -40,6 +43,33 @@ def get_tempfile(**kwargs):
             os.makedirs(CACHEDIR, exist_ok=True)
     tmpfile = tempfile.NamedTemporaryFile(dir=CACHEDIR, delete=False, **kwargs)
     return tmpfile
+
+
+def get_target_path(destination, origname):
+    """ Implements the directory/path semantics of linux mv/cp etc.
+
+    Examples:
+        >>> import os
+        >>> os.makedirs('./a')
+        >>> _get_target_path('./a', '/tmp/myfile')
+        './myfile'
+        >>> _get_target_path('./a/b', '/tmp/myfile')
+        './a/b'
+
+    Raises:
+        OSError: if neither destination NOR destination's parent exists OR it already exists
+    """
+    if os.path.exists(destination):
+        if not os.path.isdir(destination):
+            raise OSError('Cannot write to requested destination %s - file exists' % destination)
+        return os.path.join(destination, os.path.basename(origname))
+    else:
+        destdir = os.path.abspath(os.path.join(destination, os.path.pardir))
+        if not os.path.isdir(destdir):
+            raise OSError(
+                    'Cannot write to requested destination %s - parent directory does not exist' %
+                    destination)
+        return os.path.join(destination)
 
 
 class FileReferenceBase(object):
@@ -80,11 +110,10 @@ class FileReferenceBase(object):
             LocalFile: reference to the copy of the file stored at ``filename``
         """
         from . import LocalFile
-
-        with self.open('rb') as infile, open(filename, 'wb') as outfile:
-            for line in infile:
-                outfile.write(infile.read())
-        return LocalFile(filename)
+        target = get_target_path(filename, self.source)
+        with self.open('rb') as infile, open(target, 'wb') as outfile:
+            shutil.copyfileobj(infile, outfile)
+        return LocalFile(target)
 
     def __iter__(self):
         # This is the worst file-reader ever

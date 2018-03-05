@@ -12,15 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import print_function, absolute_import, division
+
+import os
 from future import standard_library
 standard_library.install_aliases()
 from future.builtins import *
 
 import sys
 import io
-from . import FileReferenceBase, ENCODING
+from . import FileReferenceBase, ENCODING, get_target_path
 
 PYVERSION = sys.version_info.major
+
 
 class StringContainer(FileReferenceBase):
     """ In-memory file stored as a text string
@@ -35,9 +38,9 @@ class StringContainer(FileReferenceBase):
         This handles both unicode (known as `unicode` in py2 and `str` in py3) and raw bytestrings
         (`str` in py2 and `bytes` in py3).
     """
-    def __init__(self, contents, name='string', encoding=ENCODING):
+    def __init__(self, contents, name=None, encoding=ENCODING):
         self.source = name
-        self.sourcetype = 'python'
+        self.sourcetype = 'runtime'
         self.localpath = None
         self._contents = contents
         self.encoding = encoding
@@ -94,6 +97,12 @@ class StringContainer(FileReferenceBase):
         """
         from . import LocalFile
 
+        if os.path.isdir(filename) and self.source is None:
+            raise ValueError("Cannot write this object to "
+                             "directory %s without an explicit filename." % filename)
+
+        target = get_target_path(filename, self.source)
+
         if encoding is None:
             encoding = self.encoding
 
@@ -102,8 +111,8 @@ class StringContainer(FileReferenceBase):
         else:
             kwargs = {'mode': 'w', 'encoding': encoding}
 
-        with open(filename, **kwargs) as outfile:
+        with open(target, **kwargs) as outfile:
             outfile.write(self._contents)
 
-        return LocalFile(filename, encoded_with=encoding)
+        return LocalFile(target, encoded_with=encoding)
 

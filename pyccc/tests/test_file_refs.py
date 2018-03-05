@@ -2,8 +2,9 @@
 import os
 import sys
 import pickle
+
+import itertools
 import pytest
-import uuid
 
 import pyccc
 
@@ -42,20 +43,29 @@ def bytescontainer():
 def stringcontainer():
     return pyccc.files.StringContainer(STRING_CONTENT)
 
+def _make_subtempdir(tmpdir):
+    """ Makes a temp dir UNDERNEATH the current tempdir
+    """
+    subtempdir = os.path.join(str(tmpdir), 'fixture_tmp')
+    os.mkdir(subtempdir)
+    return subtempdir
 
 @typedfixture('file_ref')
 def localfile_from_bytes(bytescontainer, tmpdir):
-    return bytescontainer.put(os.path.join(str(tmpdir), 'bytesfile'))
+    subtempdir = _make_subtempdir(tmpdir)
+    return bytescontainer.put(os.path.join(subtempdir, 'bytesfile'))
 
 
 @typedfixture('file_ref')
 def localfile_from_string(stringcontainer, tmpdir):
-    return stringcontainer.put(os.path.join(str(tmpdir), 'strfile'))
+    subtempdir = _make_subtempdir(tmpdir)
+    return stringcontainer.put(os.path.join(subtempdir, 'strfile'))
 
 
 @typedfixture('file_ref')
 def localfile_in_memory(bytescontainer, tmpdir):
-    localfile = bytescontainer.put(os.path.join(str(tmpdir), 'bytefile'))
+    subtempdir = _make_subtempdir(tmpdir)
+    localfile = bytescontainer.put(os.path.join(subtempdir, 'bytefile'))
     return pyccc.FileContainer(localfile.localpath)
 
 
@@ -136,3 +146,31 @@ def test_containers_are_pickleable(fixture, request):
     newctr = pickle.loads(pickle.dumps(ctr))
     assert newctr.read() == ctr.read()
 
+
+@pytest.mark.parametrize(['fixture', 'putdir'],
+                         itertools.product(fixture_types['file_ref'],
+                                           ['', 'my_file.txt']))
+def test_put_file_to_location(request, fixture, tmpdir, putdir):
+    tmpdir = str(tmpdir)
+    fileref = request.getfixturevalue(fixture)
+
+    if fileref.__class__ in (pyccc.BytesContainer, pyccc.StringContainer) and not putdir:
+        with pytest.raises(ValueError):
+            fileref.put(tmpdir)
+        return  # these classes need explicit filenames for put
+
+    if putdir:
+        target = os.path.join(tmpdir, putdir)
+        destination = target
+    else:
+        target = os.path.join(tmpdir, os.path.basename(fileref.source))
+        destination = tmpdir
+
+    assert not os.path.exists(target)
+    fileref.put(destination)
+    assert os.path.exists(target)
+
+    with open(target, 'r') as ff:
+        assert ff.read() == STRING_CONTENT
+    with open(target, 'rb') as ff:
+        assert ff.read() == BYTES_CONTENT

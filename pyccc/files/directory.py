@@ -16,34 +16,7 @@ import tarfile
 import shutil
 
 from .remotefiles import LazyDockerCopy
-from .. import utils
-
-
-def _get_target_path(destination, origname):
-    """ Implements the directory/path semantics of linux mv/cp etc.
-
-    Examples:
-        >>> import os
-        >>> os.makedirs('./a')
-        >>> _get_target_path('./a', '/tmp/myfile')
-        './myfile'
-        >>> _get_target_path('./a/b', '/tmp/myfile')
-        './a/b'
-
-    Raises:
-        OSError: if neither destination NOR destination's parent exists OR it already exists
-    """
-    if os.path.exists(destination):
-        if not os.path.isdir(destination):
-            raise OSError('Cannot write to requested destination %s - file exists' % destination)
-        return os.path.join(destination, os.path.basename(origname))
-    else:
-        destdir = os.path.abspath(os.path.join(destination, os.path.pardir))
-        if not os.path.isdir(destdir):
-            raise OSError(
-                    'Cannot write to requested destination %s - parent directory does not exist' %
-                    destination)
-        return os.path.join(destination)
+from . import get_target_path
 
 
 class DirectoryReference(object):
@@ -69,7 +42,7 @@ class LocalDirectoryReference(DirectoryReference):
         Args:
             destination (str): path to put this directory
         """
-        target = _get_target_path(destination, self.localpath)
+        target = get_target_path(destination, self.localpath)
         shutil.copytree(self.localpath, target)
 
 
@@ -99,8 +72,8 @@ class DirectoryArchive(DirectoryReference):
         References:
             https://stackoverflow.com/a/8261083/1958900
         """
-        target = _get_target_path(destination, self.dirname)
-        valid_paths = (self.dirname, './%s'%self.dirname)
+        target = get_target_path(destination, self.dirname)
+        valid_paths = (self.dirname, './%s' % self.dirname)
 
         with tarfile.open(self.archive_path, 'r:*') as tf:
             members = []

@@ -18,8 +18,9 @@ from future.builtins import *
 
 import io
 import warnings
+import os
 
-from . import FileReferenceBase
+from . import FileReferenceBase, get_target_path
 
 
 class BytesContainer(FileReferenceBase):
@@ -35,11 +36,12 @@ class BytesContainer(FileReferenceBase):
         contents (bytes): contents of the file
         encoded_with (str): encoding of the file (default: system default)
     """
-    def __init__(self, contents, encoded_with=None, name='byte string'):
+    def __init__(self, contents, encoded_with=None, name=None):
         self._contents = contents
         self.encoded_with = encoded_with
-        self.name = name
-        self.source = 'script'
+        self.source = name
+        self.localpath = None
+        self.sourcetype = 'runtime'
 
     def put(self, filename, encoding=None):
         """Write the file to the given path
@@ -52,12 +54,19 @@ class BytesContainer(FileReferenceBase):
         """
         from . import LocalFile
 
+        if os.path.isdir(filename) and self.source is None:
+            raise ValueError("Cannot write this object to "
+                             "directory %s without an explicit filename." % filename)
+
+        target = get_target_path(filename, self.source)
+
         if (encoding is not None) and (encoding != self.encoded_with):
             raise ValueError('%s is already encoded as "%s"' % self, self.encoded_with)
 
-        with self.open('rb') as infile, open(filename, 'wb') as outfile:
-            for line in infile: outfile.write(line)
-        return LocalFile(filename)
+        with self.open('rb') as infile, open(target, 'wb') as outfile:
+            for line in infile:
+                outfile.write(line)
+        return LocalFile(target)
 
     def open(self, mode='r', encoding=None):
         """Return file-like object
