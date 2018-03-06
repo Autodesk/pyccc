@@ -62,7 +62,7 @@ def create_build_context(image, inputs, wdir):
                 dest = path
             else:
                 dest = os.path.join(wdir, path)
-            dockerlines.append('ADD %s %s' % (src, dest))
+            dockerlines.append('COPY %s %s' % (src, dest))
             build_context[src] = obj
 
     dockerstring = '\n'.join(dockerlines)

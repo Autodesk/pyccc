@@ -57,8 +57,8 @@ def _get_dir_from_job_on_engine(engine, dir_archive):
 
     job = engine.launch(image='alpine',
                         workingdir='/test',
-                        inputs={'/test': archive_file},
-                        command='tar xvzf /test/archive.tar')
+                        inputs={'/test/archive.tar': archive_file},
+                        command='tar xvf /test/archive.tar')
     job.wait()
     return job.get_directory('/test/data')
 
@@ -100,3 +100,17 @@ def test_get_directory_with_subdirs(tmpdir):
     outdir.put(tmpdir)
     for path in ['a', 'b', 'fugu/fish']:
         assert os.path.exists(os.path.join(tmpdir, 'blah', path))
+
+
+def test_tar_archive_not_expanded(dir_archive):
+    engine = pyccc.Docker()
+    archive_file = pyccc.LocalFile(dir_archive.archive_path)
+    job = engine.launch(image='alpine',
+                        workingdir='/test',
+                        inputs={'/root/archive.tar': archive_file},
+                        command='ls /root')
+    job.wait()
+    files = job.stdout.split()
+    assert 'archive.tar' in files
+    assert 'data' not in files
+
