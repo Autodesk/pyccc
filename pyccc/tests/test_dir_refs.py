@@ -87,6 +87,7 @@ def test_put_directory_reference_with_renaming(request, fixturename, tmpdir, rel
 
 def test_get_directory_with_subdirs(tmpdir):
     engine = pyccc.Docker()
+    tmpdir = str(tmpdir)
 
     cmd = ("mkdir -p /opt/blah/fugu && echo a > /opt/blah/a"
            " && echo b > /opt/blah/b && echo fish > /opt/blah/fugu/fish")
