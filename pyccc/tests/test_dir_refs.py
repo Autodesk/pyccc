@@ -84,3 +84,18 @@ def test_put_directory_reference_with_renaming(request, fixturename, tmpdir, rel
     assert not mismatch
     assert not errors
 
+
+def test_get_directory_with_subdirs(tmpdir):
+    engine = pyccc.Docker()
+
+    cmd = ("mkdir -p /opt/blah/fugu && echo a > /opt/blah/a"
+           " && echo b > /opt/blah/b && echo fish > /opt/blah/fugu/fish")
+
+    job = engine.launch(image='alpine',
+                        workingdir='/test',
+                        command=cmd)
+    job.wait()
+    outdir = job.get_directory('/opt/blah')
+    outdir.put(tmpdir)
+    for path in ['a', 'b', 'fugu/fish']:
+        assert os.path.exists(os.path.join(tmpdir, 'blah', path))

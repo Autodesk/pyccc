@@ -79,10 +79,12 @@ class DirectoryArchive(DirectoryReference):
             members = []
             for tarinfo in tf:
                 # Get only files under the directory `self.dirname`
-                pathsplit = os.path.split(tarinfo.path)
+                pathsplit = os.path.normpath(tarinfo.path).split(os.sep)
                 if pathsplit[0] not in valid_paths:
                     print('WARNING: skipped file "%s" in archive; not in directory "%s"' %
                           (tarinfo.path, self.dirname))
+                    continue
+                if len(pathsplit) == 1:
                     continue
                 tarinfo.name = os.path.join(*pathsplit[1:])
                 members.append(tarinfo)
