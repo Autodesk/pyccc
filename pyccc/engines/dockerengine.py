@@ -86,6 +86,9 @@ class Docker(EngineBase):
                               working_dir=job.workingdir,
                               environment={'PYTHONIOENCODING':'utf-8'})
 
+        if job.env:
+            container_args['environment'].update(job.env)
+
         if job.engine_options:
             volumes = []
             binds = []
