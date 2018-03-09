@@ -70,6 +70,8 @@ class Subprocess(EngineBase):
 
         subenv = os.environ.copy()
         subenv['PYTHONIOENCODING'] = 'utf-8'
+        if job.env:
+            subenv.update(job.env)
         job.subproc = subprocess.Popen(job.command,
                                        shell=True,
                                        cwd=job.workingdir,

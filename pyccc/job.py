@@ -71,6 +71,7 @@ class Job(object):
         engine_options (dict): additional engine-specific options
         workingdir (str): working directory in the execution environment (i.e., on the local
             system for a subprocess, or inside the container for a docker engine)
+        env (Dict[str,str]): custom environment variables for the Job
     """
     def __init__(self, engine=None,
                  image=None,
@@ -84,7 +85,8 @@ class Job(object):
                  on_status_update=None,
                  when_finished=None,
                  workingdir=None,
-                 engine_options=None):
+                 engine_options=None,
+                 env=None):
 
         self.name = name
         self.engine = engine
@@ -92,6 +94,7 @@ class Job(object):
         self.command = if_not_none(command, '')
         self.engine_options = engine_options
         self.workingdir = workingdir
+        self.env = env
 
         self.inputs = inputs
         if self.inputs is not None:  # translate strings into file objects
