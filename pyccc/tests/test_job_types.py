@@ -448,7 +448,6 @@ def test_abspath_input_files(fixture, request):
 def test_directory_input(fixture, request):
     engine = request.getfuncargvalue(fixture)
 
-    # this is OK with docker but should fail with a subprocess
     job = engine.launch(image='alpine', command='cat data/a data/b',
                         inputs={'data':
                                     pyccc.LocalDirectoryReference(os.path.join(THISDIR, 'data'))})
@@ -461,7 +460,6 @@ def test_directory_input(fixture, request):
 def test_passing_files_between_jobs(fixture, request):
     engine = request.getfuncargvalue(fixture)
 
-    # this is OK with docker but should fail with a subprocess
     job1 = engine.launch(image='alpine', command='echo hello > world')
     job1.wait()
     assert job1.exitcode == 0
@@ -471,3 +469,15 @@ def test_passing_files_between_jobs(fixture, request):
     job2.wait()
     assert job2.exitcode == 0
     assert job2.stdout.strip() == 'hello'
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_job_env_vars(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+
+    job = engine.launch(image='alpine',
+                        command='echo ${AA} ${BB}',
+                        env={'AA': 'hello', 'BB':'world'})
+    job.wait()
+    assert job.exitcode == 0
+    assert job.stdout.strip() == 'hello world'
