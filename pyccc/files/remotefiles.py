@@ -13,6 +13,8 @@
 # limitations under the License.
 from __future__ import print_function, unicode_literals, absolute_import, division
 
+import tempfile
+
 import requests
 from future import standard_library
 standard_library.install_aliases()
@@ -94,7 +96,6 @@ class LazyDockerCopy(LazyFetcherBase):
     """
     Lazily copies the file from the worker.
     This is, of course, problematic if the worker is not accessible from the client.
-    Persistence is also a problem
     """
     def __init__(self, dockerhost, containerid, containerpath):
         self.source = "%s (%s)://%s" % (dockerhost, containerid, containerpath)
@@ -106,19 +107,18 @@ class LazyDockerCopy(LazyFetcherBase):
         super(LazyDockerCopy, self).__init__()
 
     def _fetch(self):
-        """
-        Note that docker.copy returns an uncompressed tar stream, which
-        was undocumented as of this writing.
-        See http://stackoverflow.com/questions/22683410/docker-python-client-api-copy
-        """
         self._open_tmpfile()
+
+        # extracts the stream into a disk-spooled file-like object
         stream = self._get_tarstream()
-        # from stackoverflow link
-        filelike = io.BytesIO(stream.read())
-        tar = tarfile.open(fileobj=filelike)
-        file = tar.extractfile(os.path.basename(self.containerpath))
-        # end SOFlow
-        self.tmpfile.write(file.read())
+        with tempfile.SpooledTemporaryFile() as buffer:
+            for d in stream:
+                buffer.write(d)
+            buffer.seek(0)
+            tar = tarfile.open(fileobj=buffer)
+            file = tar.extractfile(os.path.basename(self.containerpath))
+            self.tmpfile.write(file.read())
+
         stream.close()
         self.tmpfile.close()
         self.localpath = self.tmpfile.name

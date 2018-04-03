@@ -123,6 +123,7 @@ class DockerArchive(DirectoryArchive, LazyDockerCopy):
     def _fetch(self):
         self.archive_path = self._open_tmpfile()
         stream = self._get_tarstream()
-        shutil.copyfileobj(stream, self.tmpfile)
+        for d in stream:
+            self.tmpfile.write(d)
         stream.close()
         self.tmpfile.close()

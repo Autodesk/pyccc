@@ -36,7 +36,7 @@ def create_provisioned_image(client, image, wdir, inputs, pull=False):
     with tempfile.NamedTemporaryFile(suffix='.tar.gz', mode='wb') as tfile:
         gzstream = gzip.GzipFile(fileobj=tfile, mode='wb')
         make_tar_stream(build_context, gzstream)
-        gzstream.flush()
+        gzstream.close()
         tfile.flush()
         imageid = build_dfile_stream(client, tfile.name, pull=pull)
     return imageid
@@ -80,11 +80,12 @@ def build_dfile_stream(client, dfilepath, **kwargs):
                                 encoding='gzip',
                                 **kwargs)
 
-    # this blocks until the image is done building
-    for x in buildcmd:
-        if isinstance(x, bytes):
-            x = x.decode('utf-8')
-        logging.info('building image:%s' % (x.rstrip('\n')))
+        # this blocks until the image is done building
+        print('just checking')
+        for x in buildcmd:
+            if isinstance(x, bytes):
+                x = x.decode('utf-8')
+            logging.info('building image:%s' % (x.rstrip('\n')))
 
     result = json.loads(_issue1134_helper(x))
     try:
@@ -200,7 +201,7 @@ def kwargs_from_client(client, assert_hostname=False):
     :type client : docker.Client
     """
     from docker import tls
-    if client.base_url == 'http+docker://localunixsocket':
+    if client.base_url in ('http+docker://localunixsocket', 'http+docker://localhost'):
         return {'base_url': 'unix://var/run/docker.sock'}
 
     params = {'base_url': client.base_url}
