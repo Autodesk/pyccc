@@ -118,7 +118,11 @@ class Docker(EngineBase):
         return container_args
 
     def wait(self, job):
-        return self.client.wait(job.container)
+        stat = self.client.wait(job.container)
+        if isinstance(stat, int):  # i.e., docker<3
+            return stat
+        else:  # i.e., docker>=3
+            return stat['StatusCode']
 
     def kill(self, job):
         self.client.kill(job.container)
