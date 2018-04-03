@@ -81,7 +81,6 @@ def build_dfile_stream(client, dfilepath, **kwargs):
                                 **kwargs)
 
         # this blocks until the image is done building
-        print('just checking')
         for x in buildcmd:
             if isinstance(x, bytes):
                 x = x.decode('utf-8')
