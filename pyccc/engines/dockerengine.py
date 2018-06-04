@@ -89,31 +89,30 @@ class Docker(EngineBase):
         if job.env:
             container_args['environment'].update(job.env)
 
-        if job.engine_options:
-            volumes = []
-            binds = []
+        volumes = []
+        binds = []
 
-            # mount the docker socket into the container
-            if job.engine_options.get('mount_docker_socket', False):
-                volumes.append('/var/run/docker.sock')
-                binds.append('/var/run/docker.sock:/var/run/docker.sock:rw')
+        # mount the docker socket into the container (two ways to do this for backwards compat.)
+        if job.withdocker or job.engine_options.get('mount_docker_socket', False):
+            volumes.append('/var/run/docker.sock')
+            binds.append('/var/run/docker.sock:/var/run/docker.sock:rw')
 
-            # handle other mounted volumes
-            for volume, mount in job.engine_options.get('volumes', {}).items():
-                if isinstance(mount, (list, tuple)):
-                    mountpoint, mode = mount
-                    bind = '%s:%s:%s' % (volume, mountpoint, mode)
-                else:
-                    mountpoint = mount
-                    mode = None
-                    bind = '%s:%s' % (volume, mountpoint)
+        # handle other mounted volumes
+        for volume, mount in job.engine_options.get('volumes', {}).items():
+            if isinstance(mount, (list, tuple)):
+                mountpoint, mode = mount
+                bind = '%s:%s:%s' % (volume, mountpoint, mode)
+            else:
+                mountpoint = mount
+                mode = None
+                bind = '%s:%s' % (volume, mountpoint)
 
-                volumes.append(mountpoint)
-                binds.append(bind)
+            volumes.append(mountpoint)
+            binds.append(bind)
 
-            if volumes or binds:
-                container_args['volumes'] = volumes
-                container_args['host_config'] = self.client.create_host_config(binds=binds)
+        if volumes or binds:
+            container_args['volumes'] = volumes
+            container_args['host_config'] = self.client.create_host_config(binds=binds)
 
         return container_args
 

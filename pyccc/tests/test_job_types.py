@@ -347,14 +347,28 @@ def _runcall(fixture, request, function, *args, **kwargs):
     job.wait()
     return job.result
 
+
 @pytest.mark.skipif('CI_PROJECT_ID' in os.environ,
                     reason="Can't mount docker socket in codeship")
-def test_docker_socket_mount(local_docker_engine):
+def test_docker_socket_mount_with_engine_option(local_docker_engine):
     engine = local_docker_engine
 
     job = engine.launch(image='docker',
                         command='docker ps -q --no-trunc',
                         engine_options={'mount_docker_socket': True})
+    job.wait()
+    running = job.stdout.strip().splitlines()
+    assert job.jobid in running
+
+
+@pytest.mark.skipif('CI_PROJECT_ID' in os.environ,
+                    reason="Can't mount docker socket in codeship")
+def test_docker_socket_mount_withdocker_option(local_docker_engine):
+    engine = local_docker_engine
+
+    job = engine.launch(image='docker',
+                        command='docker ps -q --no-trunc',
+                        withdocker=True)
     job.wait()
     running = job.stdout.strip().splitlines()
     assert job.jobid in running

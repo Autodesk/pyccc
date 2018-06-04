@@ -64,6 +64,7 @@ class Job(object):
             contents (which can be either a FileContainer or just a string)
         on_status_update (callable): function that can be called as ``func(job)``; will be called
             locally whenever the job's status field is updated
+        withdocker (bool): whether this job needs access to a docker daemon
         when_finished (callable): function that can be called as ``func(job)``; will be called
             locally once, when this job completes
         numcpus (int): number of CPUs required (default:1)
@@ -79,7 +80,7 @@ class Job(object):
                  name='untitled',
                  submit=True,
                  inputs=None,
-                 requirements=None,
+                 withdocker=False,
                  numcpus=1,
                  runtime=3600,
                  on_status_update=None,
@@ -92,7 +93,7 @@ class Job(object):
         self.engine = engine
         self.image = image
         self.command = if_not_none(command, '')
-        self.engine_options = engine_options
+        self.engine_options = if_not_none(engine_options, {})
         self.workingdir = workingdir
         self.env = env
 
@@ -104,11 +105,11 @@ class Job(object):
                 else:
                     self.inputs[filename] = fileobj
 
-        self.requirements = if_not_none(requirements, {})
         self.on_status_update = on_status_update
         self.when_finished = when_finished
         self.numcpus = numcpus
         self.runtime = runtime
+        self.withdocker = withdocker
 
         self._reset()
 
