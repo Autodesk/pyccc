@@ -28,6 +28,9 @@ from . import EngineBase
 class Docker(EngineBase):
     """ A compute engine - uses a docker server to run jobs
     """
+    USES_IMAGES = True
+    ABSPATHS = True
+
     def __init__(self, client=None, workingdir='/workingdir'):
         """ Initialization:
 

@@ -1,4 +1,24 @@
 # -*- coding: utf-8 -*-
+"""
+Basic test battery for regular and python jobs on all underlying engines
+
+This can be used to test external engines (in a hacky, somewhat brittle way right now):
+
+```python
+import pytest
+from pyccc.tests import engine_fixtures
+
+@pytest.fixture(scope='module')
+def my_engine():
+    return MyEngine()
+
+engine_fixtures.fixture_types['engine'] = ['my_engine']
+from pyccc.tests.test_engines import *  # imports all the tests
+```
+
+A less hacky way to via a parameterized test strategy similar to testscenarios:
+https://docs.pytest.org/en/latest/example/parametrize.html#a-quick-port-of-testscenarios
+"""
 import os
 import sys
 import pytest
@@ -6,33 +26,9 @@ import pyccc
 from .engine_fixtures import *
 from . import function_tests
 
-"""
-Basic test battery for regular and python jobs on all underlying engines
-
-This can be used to test external engines (in a hacky way right now):
-
-```python
-import pytest
-from pyccc.tests import engine_fixtures
-
-@pytest.fixture
-def my_engine_fixture():
-    return MyCustomEngine()
-
-engine_fixtures['engine'] = my_engine_fixture
-
-from pyccc.tests.test_engines import *
-```
-
-A less hacky way to do this would be via pytest-testscenarios or similar test generation strategy
-see https://docs.pytest.org/en/latest/example/parametrize.html#a-quick-port-of-testscenarios
-
-"""
-
 PYVERSION = '%s.%s' % (sys.version_info.major, sys.version_info.minor)
 PYIMAGE = 'python:%s-slim' % PYVERSION
 THISDIR = os.path.dirname(__file__)
-
 
 ########################
 # Python test objects  #
@@ -364,7 +360,9 @@ def test_clean_working_dir(fixture, request):
     assert job.stdout.strip() == ''
 
 
-class no_context():  # context manager that does nothing -- can be used conditionally
+class no_context(): 
+    """context manager that does nothing -- useful if we need to conditionally apply a context
+    """
     def __enter__(self):
         return None
     def __exit__(self, exc_type, exc_value, traceback):
@@ -374,8 +372,7 @@ class no_context():  # context manager that does nothing -- can be used conditio
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_abspath_input_files(fixture, request):
     engine = request.getfuncargvalue(fixture)
-    with pytest.raises(ValueError) if isinstance(engine, pyccc.Subprocess) else no_context():
-        # this is OK with docker but should fail with a subprocess
+    with no_context() if engine.ABSPATHS else pytest.raises(ValueError):
         job = engine.launch(image='alpine', command='cat /opt/a',
                             inputs={'/opt/a': pyccc.LocalFile(os.path.join(THISDIR, 'data', 'a'))})
     if not isinstance(engine, pyccc.Subprocess):

@@ -13,3 +13,5 @@ codeship.aes
 .cache
 __pycache__
 README.rst
+.pytest_cache
+.remote

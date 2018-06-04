@@ -29,6 +29,8 @@ class Subprocess(EngineBase):
     For now, don't return anything until job completes"""
 
     hostname = 'local'
+    USES_IMAGES = False
+    ABSPATHS = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

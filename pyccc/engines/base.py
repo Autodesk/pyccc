@@ -25,6 +25,14 @@ class EngineBase(object):
     This class defines the implementation only - you intantiate one of its subclasses
     """
 
+    USES_IMAGES = None
+    "bool: subclasses should set this to indicate whether they use the `job.image` field"
+
+    ABSPATHS = None
+    """bool: subclasses should set this to indicate whether files can
+             be referenced via absolute path"""
+
+
     hostname = 'not specified'  # this should be overidden in subclass init methods
 
     def __call__(self, *args, **kwargs):
