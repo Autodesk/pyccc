@@ -40,13 +40,6 @@ def test_set_workingdir_docker(local_docker_engine):
     assert job.stdout.strip() == '/testtest-dir-test'
 
 
-def test_set_workingdir_subprocess(subprocess_engine, tmpdir):
-    engine = subprocess_engine
-    job = engine.launch(image=None, command='pwd', workingdir=str(tmpdir))
-    job.wait()
-    assert job.stdout.strip() == str(tmpdir)
-
-
 def test_docker_volume_mount(local_docker_engine):
     """
     Note:

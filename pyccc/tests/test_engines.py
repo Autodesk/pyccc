@@ -372,10 +372,10 @@ class no_context():
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_abspath_input_files(fixture, request):
     engine = request.getfuncargvalue(fixture)
-    with no_context() if engine.ABSPATHS else pytest.raises(ValueError):
+    with no_context() if engine.ABSPATHS else pytest.raises(pyccc.PathError):
         job = engine.launch(image='alpine', command='cat /opt/a',
                             inputs={'/opt/a': pyccc.LocalFile(os.path.join(THISDIR, 'data', 'a'))})
-    if not isinstance(engine, pyccc.Subprocess):
+    if engine.ABSPATHS:
         job.wait()
         assert job.exitcode == 0
         assert job.stdout.strip() == 'a'

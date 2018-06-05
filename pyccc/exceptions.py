@@ -77,3 +77,7 @@ class EngineTestError(Exception):
 class DockerMachineError(Exception):
     """ Failures related to connecting to docker machines
     """
+
+class PathError(Exception):
+    """ The engine can't fulfill the requested input or output filesystem path
+    """

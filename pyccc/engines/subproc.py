@@ -20,7 +20,7 @@ import os
 import subprocess
 import locale
 
-from pyccc import utils as utils, files
+from pyccc import utils as utils, files, exceptions
 from . import EngineBase, status
 
 
@@ -37,7 +37,7 @@ class Subprocess(EngineBase):
         self.term_encoding = locale.getpreferredencoding()
 
     def get_status(self, job):
-        if job.subproc.poll() is None:
+        if job.rundata.subproc.poll() is None:
             return status.RUNNING
         else:
             return status.FINISHED
@@ -52,7 +52,7 @@ class Subprocess(EngineBase):
         """
         Return a text description for the UI
         """
-        return 'Local subprocess %s' % job.subproc.pid
+        return 'Local subprocess %s' % job.rundata.subproc
 
     def launch(self, image=None, command=None,  **kwargs):
         if command is None:
@@ -61,28 +61,26 @@ class Subprocess(EngineBase):
 
     def submit(self, job):
         self._check_job(job)
-        if job.workingdir is None:
-            job.workingdir = utils.make_local_temp_dir()
+        job.rundata.localdir = utils.make_local_temp_dir()
 
-        assert os.path.isabs(job.workingdir)
+        assert os.path.isabs(job.rundata.localdir)
         if job.inputs:
             for filename, f in job.inputs.items():
-                targetpath = self._check_file_is_under_workingdir(filename, job.workingdir)
+                targetpath = self._check_file_is_under_workingdir(filename, job.rundata.localdir)
                 f.put(targetpath)
 
         subenv = os.environ.copy()
         subenv['PYTHONIOENCODING'] = 'utf-8'
         if job.env:
             subenv.update(job.env)
-        job.subproc = subprocess.Popen(job.command,
-                                       shell=True,
-                                       cwd=job.workingdir,
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE,
-                                       env=subenv)
-        job.jobid = job.subproc.pid
-        job._started = True
-        return job.subproc.pid
+        job.rundata.subproc = subprocess.Popen(job.command,
+                                               shell=True,
+                                               cwd=job.rundata.localdir,
+                                               stdout=subprocess.PIPE,
+                                               stderr=subprocess.PIPE,
+                                               env=subenv)
+        job.jobid = job.rundata.subproc.pid
+        return job.rundata.subproc.pid
 
     @staticmethod
     def _check_file_is_under_workingdir(filename, wdir):
@@ -95,22 +93,22 @@ class Subprocess(EngineBase):
         wdir = os.path.realpath(wdir)
         common = os.path.commonprefix([wdir, targetpath])
         if len(common) < len(wdir):
-            raise ValueError(
+            raise exceptions.PathError(
                     "The subprocess engine does not support input files with absolute paths")
         return p
 
     def kill(self, job):
-        job.subproc.terminate()
+        job.rundata.subproc.terminate()
 
     def wait(self, job):
-        return job.subproc.wait()
+        return job.rundata.subproc.wait()
 
     def get_directory(self, job, path):
-        targetpath = self._check_file_is_under_workingdir(path, job.workingdir)
+        targetpath = self._check_file_is_under_workingdir(path, job.rundata.localdir)
         return files.LocalDirectoryReference(targetpath)
 
     def _list_output_files(self, job, dir=None):
-        if dir is None: dir = job.workingdir
+        if dir is None: dir = job.rundata.localdir
         filenames = {}
         for fname in os.listdir(dir):
             abs_path = '%s/%s' % (dir, fname)
@@ -126,6 +124,6 @@ class Subprocess(EngineBase):
 
     def _get_final_stds(self, job):
         strings = []
-        for fileobj in (job.subproc.stdout, job.subproc.stderr):
+        for fileobj in (job.rundata.subproc.stdout, job.rundata.subproc.stderr):
             strings.append(fileobj.read().decode('utf-8'))
         return strings
