@@ -45,6 +45,7 @@ def _raise_valueerror(msg):
 def test_hello_world(fixture, request):
     engine = request.getfuncargvalue(fixture)
     job = engine.launch('alpine', 'echo hello world')
+    print(job.rundata)
     job.wait()
     assert job.stdout.strip() == 'hello world'
 
@@ -55,6 +56,7 @@ def test_job_status(fixture, request):
     job = engine.launch('alpine', 'sleep 3', submit=False)
     assert job.status.lower() == 'unsubmitted'
     job.submit()
+    print(job.rundata)
     assert job.status.lower() in ('queued', 'running', 'downloading')
     job.wait()
     assert job.status.lower() == 'finished'
@@ -64,6 +66,7 @@ def test_job_status(fixture, request):
 def test_file_glob(fixture, request):
     engine = request.getfuncargvalue(fixture)
     job = engine.launch('alpine', 'touch a.txt b c d.txt e.gif')
+    print(job.rundata)
     job.wait()
 
     assert set(job.get_output().keys()) <= set('a.txt b c d.txt e.gif'.split())
@@ -77,6 +80,7 @@ def test_input_ouput_files(fixture, request):
                         command='cat a.txt b.txt > out.txt',
                         inputs={'a.txt': 'a',
                                 'b.txt': pyccc.StringContainer('b')})
+    print(job.rundata)
     job.wait()
     assert job.get_output('out.txt').read().strip() == 'ab'
 
@@ -85,6 +89,7 @@ def test_input_ouput_files(fixture, request):
 def test_sleep_raises_jobstillrunning(fixture, request):
     engine = request.getfuncargvalue(fixture)
     job = engine.launch('alpine', 'sleep 5; echo done')
+    print(job.rundata)
     with pytest.raises(pyccc.JobStillRunning):
         job.stdout
     job.wait()
@@ -96,6 +101,7 @@ def test_python_function(fixture, request):
     engine = request.getfuncargvalue(fixture)
     pycall = pyccc.PythonCall(function_tests.fn, 5)
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
+    print(job.rundata)
     job.wait()
     assert job.result == 6
 
@@ -106,6 +112,7 @@ def test_python_instance_method(fixture, request):
     obj = function_tests.Cls()
     pycall = pyccc.PythonCall(obj.increment, by=2)
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
+    print(job.rundata)
     job.wait()
 
     assert job.result == 2
@@ -117,6 +124,7 @@ def test_python_reraises_exception(fixture, request):
     engine = request.getfuncargvalue(fixture)
     pycall = pyccc.PythonCall(_raise_valueerror, 'this is my message')
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
+    print(job.rundata)
     job.wait()
 
     with pytest.raises(ValueError):
@@ -129,6 +137,7 @@ def test_builtin_imethod(fixture, request):
     mylist = [3, 2, 1]
     fn = pyccc.PythonCall(mylist.sort)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
+    print(job.rundata)
     job.wait()
 
     assert job.result is None  # since sort doesn't return anything
@@ -186,6 +195,7 @@ def test_bash_exitcode(fixture, request):
                     command='sleep 5 && exit 35',
                     engine=engine,
                     submit=True)
+    print(job.rundata)
     with pytest.raises(pyccc.JobStillRunning):
         job.exitcode
     job.wait()
@@ -198,6 +208,7 @@ def test_python_exitcode(fixture, request):
     engine = request.getfuncargvalue(fixture)
     fn = pyccc.PythonCall(function_tests.sleep_then_exit_38)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
+    print(job.rundata)
 
     with pytest.raises(pyccc.JobStillRunning):
         job.exitcode
@@ -231,6 +242,7 @@ def test_persistence_assumptions(fixture, request):
 
     # First the control experiment - references are NOT persisted
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
+    print(job.rundata)
     job.wait()
     result = job.result
     assert result is not testobj
@@ -249,6 +261,7 @@ def test_persist_references_flag(fixture, request):
 
     # With the right flag, references ARE now persisted
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION, persist_references=True)
+    print(job.rundata)
     job.wait()
     result = job.result
     assert result is testobj
@@ -270,6 +283,7 @@ def test_persistent_and_nonpersistent_mixture(fixture, request):
     pycall = pyccc.PythonCall(testobj.identity)
 
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION, persist_references=True)
+    print(job.rundata)
     job.wait()
     result = job.result
     assert result is not testobj
@@ -287,6 +301,7 @@ def test_callback(fixture, request):
     job = engine.launch(image=PYIMAGE,
                         command='echo hello world > out.txt',
                         when_finished=_callback)
+    print(job.rundata)
     job.wait()
 
     assert job.result == 'hello world'
@@ -297,6 +312,7 @@ def test_unicode_stdout_and_return(fixture, request):
     engine = request.getfuncargvalue(fixture)
     fn = pyccc.PythonCall(function_tests.fn_prints_unicode)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
+    print(job.rundata)
     job.wait()
     assert job.result == u'¶'
     assert job.stdout.strip() == u'Å'
@@ -311,6 +327,7 @@ def test_callback_after_python_job(fixture, request):
     fn = pyccc.PythonCall(function_tests.fn, 3.0)
     engine = request.getfuncargvalue(fixture)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION, when_finished=_callback)
+    print(job.rundata)
     job.wait()
 
     assert job.function_result == 4.0
@@ -329,6 +346,7 @@ def test_job_with_callback_and_references(fixture, request):
     engine = request.getfuncargvalue(fixture)
     job = engine.launch(image=PYIMAGE, command=fn,
                         interpreter=PYVERSION, when_finished=_callback, persist_references=True)
+    print(job.rundata)
     job.wait()
 
     assert job.function_result is testobj
@@ -346,6 +364,7 @@ def _runcall(fixture, request, function, *args, **kwargs):
     engine = request.getfuncargvalue(fixture)
     fn = pyccc.PythonCall(function, *args, **kwargs)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
+    print(job.rundata)
     job.wait()
     return job.result
 
@@ -356,6 +375,7 @@ def test_clean_working_dir(fixture, request):
     """
     engine = request.getfuncargvalue(fixture)
     job = engine.launch(image='alpine', command='ls')
+    print(job.rundata)
     job.wait()
     assert job.stdout.strip() == ''
 
@@ -365,6 +385,7 @@ class no_context():
     """
     def __enter__(self):
         return None
+
     def __exit__(self, exc_type, exc_value, traceback):
         return False
 
@@ -376,6 +397,7 @@ def test_abspath_input_files(fixture, request):
         job = engine.launch(image='alpine', command='cat /opt/a',
                             inputs={'/opt/a': pyccc.LocalFile(os.path.join(THISDIR, 'data', 'a'))})
     if engine.ABSPATHS:
+        print(job.rundata)
         job.wait()
         assert job.exitcode == 0
         assert job.stdout.strip() == 'a'
@@ -388,6 +410,7 @@ def test_directory_input(fixture, request):
     job = engine.launch(image='alpine', command='cat data/a data/b',
                         inputs={'data':
                                     pyccc.LocalDirectoryReference(os.path.join(THISDIR, 'data'))})
+    print(job.rundata)
     job.wait()
     assert job.exitcode == 0
     assert job.stdout.strip() == 'a\nb'
@@ -398,11 +421,13 @@ def test_passing_files_between_jobs(fixture, request):
     engine = request.getfuncargvalue(fixture)
 
     job1 = engine.launch(image='alpine', command='echo hello > world')
+    print('job1:', job1.rundata)
     job1.wait()
     assert job1.exitcode == 0
 
     job2 = engine.launch(image='alpine', command='cat helloworld',
                          inputs={'helloworld': job1.get_output('world')})
+    print('job2:', job2.rundata)
     job2.wait()
     assert job2.exitcode == 0
     assert job2.stdout.strip() == 'hello'
@@ -415,6 +440,7 @@ def test_job_env_vars(fixture, request):
     job = engine.launch(image='alpine',
                         command='echo ${AA} ${BB}',
                         env={'AA': 'hello', 'BB':'world'})
+    print(job.rundata)
     job.wait()
     assert job.exitcode == 0
     assert job.stdout.strip() == 'hello world'
