@@ -86,7 +86,7 @@ class Docker(EngineBase):
         job = Job(engine=self)
         job.jobid = job.rundata.containerid = jobid
         try:
-            jobdata = self.client.containers.inspect_container(job.jobid)
+            jobdata = self.client.inspect_container(job.jobid)
         except docker.errors.NotFound:
             raise exceptions.JobNotFound(
                     'The daemon could not find containter "%s"' % job.jobid)
@@ -103,8 +103,9 @@ class Docker(EngineBase):
             cmd = ' '.join(shlex.quote(x) for x in cmd)
 
         job.command = cmd
-        job.env = jobdata['Env']
-        job.workingdir = jobdata['WorkingDir']
+        job.env = jobdata['Config']['Env']
+        job.workingdir = jobdata['Config']['WorkingDir']
+        job.rundata.container = jobdata
 
         return job
 
