@@ -67,6 +67,23 @@ class EngineBase(object):
         else:
             return Job(self, image, command, **kwargs)
 
+    def get_job(self, jobid):
+        """ Return a Job object for this job.
+
+        The returned object will be suitable for retrieving output, but depending on the engine,
+        may not populate all fields used at launch time (such as `job.inputs`, `job.commands`, etc.)
+
+        Args:
+            jobid (Any): job id object
+
+        Returns:
+            pyccc.job.Job: job object for this job id
+
+        Raises:
+            pyccc.exceptions.JobNotFound: if no job could be located for this jobid
+        """
+        raise NotImplementedError()
+
     def submit(self, job):
         """
         submit job to engine

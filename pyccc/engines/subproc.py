@@ -59,6 +59,9 @@ class Subprocess(EngineBase):
             command = image
         return super(Subprocess, self).launch('no_image', command, **kwargs)
 
+    def get_job(self, jobid):
+        raise NotImplementedError("Cannot retrieve jobs with the subprocess engine")
+
     def submit(self, job):
         self._check_job(job)
         job.rundata.localdir = utils.make_local_temp_dir()

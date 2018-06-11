@@ -92,4 +92,3 @@ def test_docker_socket_mount_withdocker_option(local_docker_engine):
     job.wait()
     running = job.stdout.strip().splitlines()
     assert job.jobid in running
-

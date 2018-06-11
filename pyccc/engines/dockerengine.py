@@ -19,9 +19,10 @@ from past.builtins import basestring
 
 import subprocess
 
-import docker
+import docker.errors
+
 from .. import docker_utils as du, DockerMachineError
-from .. import utils, files, status
+from .. import utils, files, status, exceptions
 from . import EngineBase
 
 
@@ -63,6 +64,50 @@ class Docker(EngineBase):
     def test_connection(self):
         version = self.client.version()
         return version
+
+    def get_job(self, jobid):
+        """ Return a Job object for the requested job id.
+
+        The returned object will be suitable for retrieving output, but depending on the engine,
+        may not populate all fields used at launch time (such as `job.inputs`, `job.commands`, etc.)
+
+        Args:
+            jobid (str): container id
+
+        Returns:
+            pyccc.job.Job: job object for this container
+
+        Raises:
+            pyccc.exceptions.JobNotFound: if no job could be located for this jobid
+        """
+        import shlex
+        from pyccc.job import Job
+
+        job = Job(engine=self)
+        job.jobid = job.rundata.containerid = jobid
+        try:
+            jobdata = self.client.containers.inspect_container(job.jobid)
+        except docker.errors.NotFound:
+            raise exceptions.JobNotFound(
+                    'The daemon could not find containter "%s"' % job.jobid)
+
+        cmd = jobdata['Config']['Cmd']
+        entrypoint = jobdata['Config']['Entrypoint']
+
+        if len(cmd) == 3 and cmd[0:2] == ['sh', '-c']:
+            cmd = cmd[2]
+        elif entrypoint is not None:
+            cmd = entrypoint + cmd
+
+        if isinstance(cmd, list):
+            cmd = ' '.join(shlex.quote(x) for x in cmd)
+
+        job.command = cmd
+        job.env = jobdata['Env']
+        job.workingdir = jobdata['WorkingDir']
+
+        return job
+
 
     def submit(self, job):
         """ Submit job to the engine

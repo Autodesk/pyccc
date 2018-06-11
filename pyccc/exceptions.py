@@ -81,3 +81,7 @@ class DockerMachineError(Exception):
 class PathError(Exception):
     """ The engine can't fulfill the requested input or output filesystem path
     """
+
+class JobNotFound(Exception):
+    """ The requested job was not found
+    """

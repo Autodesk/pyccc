@@ -444,3 +444,23 @@ def test_job_env_vars(fixture, request):
     job.wait()
     assert job.exitcode == 0
     assert job.stdout.strip() == 'hello world'
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_get_job(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+    job = engine.launch(image='alpine',
+                        command='sleep 1 && echo nice nap')
+
+    try:
+        newjob = engine.get_job(job.jobid)
+    except NotImplementedError:
+        pytest.skip('get_job raised NotImplementedError for %s' % fixture)
+
+    assert job.jobid == newjob.jobid
+    job.wait()
+    assert newjob.status == job.status
+
+    assert newjob.stdout == job.stdout
+    assert newjob.stderr == job.stderr
+
