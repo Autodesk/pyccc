@@ -1,4 +1,24 @@
 # -*- coding: utf-8 -*-
+"""
+Basic test battery for regular and python jobs on all underlying engines
+
+This can be used to test external engines (in a hacky, somewhat brittle way right now):
+
+```python
+import pytest
+from pyccc.tests import engine_fixtures
+
+@pytest.fixture(scope='module')
+def my_engine():
+    return MyEngine()
+
+engine_fixtures.fixture_types['engine'] = ['my_engine']
+from pyccc.tests.test_engines import *  # imports all the tests
+```
+
+A less hacky way to via a parameterized test strategy similar to testscenarios:
+https://docs.pytest.org/en/latest/example/parametrize.html#a-quick-port-of-testscenarios
+"""
 import os
 import sys
 import pytest
@@ -6,12 +26,9 @@ import pyccc
 from .engine_fixtures import *
 from . import function_tests
 
-"""Basic test battery for regular and python jobs on all underlying engines"""
-
 PYVERSION = '%s.%s' % (sys.version_info.major, sys.version_info.minor)
 PYIMAGE = 'python:%s-slim' % PYVERSION
 THISDIR = os.path.dirname(__file__)
-
 
 ########################
 # Python test objects  #
@@ -28,6 +45,7 @@ def _raise_valueerror(msg):
 def test_hello_world(fixture, request):
     engine = request.getfuncargvalue(fixture)
     job = engine.launch('alpine', 'echo hello world')
+    print(job.rundata)
     job.wait()
     assert job.stdout.strip() == 'hello world'
 
@@ -38,6 +56,7 @@ def test_job_status(fixture, request):
     job = engine.launch('alpine', 'sleep 3', submit=False)
     assert job.status.lower() == 'unsubmitted'
     job.submit()
+    print(job.rundata)
     assert job.status.lower() in ('queued', 'running', 'downloading')
     job.wait()
     assert job.status.lower() == 'finished'
@@ -47,6 +66,7 @@ def test_job_status(fixture, request):
 def test_file_glob(fixture, request):
     engine = request.getfuncargvalue(fixture)
     job = engine.launch('alpine', 'touch a.txt b c d.txt e.gif')
+    print(job.rundata)
     job.wait()
 
     assert set(job.get_output().keys()) <= set('a.txt b c d.txt e.gif'.split())
@@ -60,6 +80,7 @@ def test_input_ouput_files(fixture, request):
                         command='cat a.txt b.txt > out.txt',
                         inputs={'a.txt': 'a',
                                 'b.txt': pyccc.StringContainer('b')})
+    print(job.rundata)
     job.wait()
     assert job.get_output('out.txt').read().strip() == 'ab'
 
@@ -68,6 +89,7 @@ def test_input_ouput_files(fixture, request):
 def test_sleep_raises_jobstillrunning(fixture, request):
     engine = request.getfuncargvalue(fixture)
     job = engine.launch('alpine', 'sleep 5; echo done')
+    print(job.rundata)
     with pytest.raises(pyccc.JobStillRunning):
         job.stdout
     job.wait()
@@ -79,6 +101,7 @@ def test_python_function(fixture, request):
     engine = request.getfuncargvalue(fixture)
     pycall = pyccc.PythonCall(function_tests.fn, 5)
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
+    print(job.rundata)
     job.wait()
     assert job.result == 6
 
@@ -89,6 +112,7 @@ def test_python_instance_method(fixture, request):
     obj = function_tests.Cls()
     pycall = pyccc.PythonCall(obj.increment, by=2)
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
+    print(job.rundata)
     job.wait()
 
     assert job.result == 2
@@ -100,6 +124,7 @@ def test_python_reraises_exception(fixture, request):
     engine = request.getfuncargvalue(fixture)
     pycall = pyccc.PythonCall(_raise_valueerror, 'this is my message')
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
+    print(job.rundata)
     job.wait()
 
     with pytest.raises(ValueError):
@@ -112,6 +137,7 @@ def test_builtin_imethod(fixture, request):
     mylist = [3, 2, 1]
     fn = pyccc.PythonCall(mylist.sort)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
+    print(job.rundata)
     job.wait()
 
     assert job.result is None  # since sort doesn't return anything
@@ -169,6 +195,7 @@ def test_bash_exitcode(fixture, request):
                     command='sleep 5 && exit 35',
                     engine=engine,
                     submit=True)
+    print(job.rundata)
     with pytest.raises(pyccc.JobStillRunning):
         job.exitcode
     job.wait()
@@ -176,26 +203,12 @@ def test_bash_exitcode(fixture, request):
     assert job.exitcode == 35
 
 
-@pytest.fixture
-def set_env_var():
-    import os
-    assert 'NULL123' not in os.environ, "Bleeding environment"
-    os.environ['NULL123'] = 'nullabc'
-    yield
-    del os.environ['NULL123']
-
-
-def test_subprocess_environment_preserved(subprocess_engine, set_env_var):
-    job = subprocess_engine.launch(command='echo $NULL123', image='python:2.7-slim')
-    job.wait()
-    assert job.stdout.strip() == 'nullabc'
-
-
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_python_exitcode(fixture, request):
     engine = request.getfuncargvalue(fixture)
     fn = pyccc.PythonCall(function_tests.sleep_then_exit_38)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
+    print(job.rundata)
 
     with pytest.raises(pyccc.JobStillRunning):
         job.exitcode
@@ -229,6 +242,7 @@ def test_persistence_assumptions(fixture, request):
 
     # First the control experiment - references are NOT persisted
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
+    print(job.rundata)
     job.wait()
     result = job.result
     assert result is not testobj
@@ -247,6 +261,7 @@ def test_persist_references_flag(fixture, request):
 
     # With the right flag, references ARE now persisted
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION, persist_references=True)
+    print(job.rundata)
     job.wait()
     result = job.result
     assert result is testobj
@@ -268,6 +283,7 @@ def test_persistent_and_nonpersistent_mixture(fixture, request):
     pycall = pyccc.PythonCall(testobj.identity)
 
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION, persist_references=True)
+    print(job.rundata)
     job.wait()
     result = job.result
     assert result is not testobj
@@ -285,6 +301,7 @@ def test_callback(fixture, request):
     job = engine.launch(image=PYIMAGE,
                         command='echo hello world > out.txt',
                         when_finished=_callback)
+    print(job.rundata)
     job.wait()
 
     assert job.result == 'hello world'
@@ -295,6 +312,7 @@ def test_unicode_stdout_and_return(fixture, request):
     engine = request.getfuncargvalue(fixture)
     fn = pyccc.PythonCall(function_tests.fn_prints_unicode)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
+    print(job.rundata)
     job.wait()
     assert job.result == u'¶'
     assert job.stdout.strip() == u'Å'
@@ -309,6 +327,7 @@ def test_callback_after_python_job(fixture, request):
     fn = pyccc.PythonCall(function_tests.fn, 3.0)
     engine = request.getfuncargvalue(fixture)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION, when_finished=_callback)
+    print(job.rundata)
     job.wait()
 
     assert job.function_result == 4.0
@@ -327,6 +346,7 @@ def test_job_with_callback_and_references(fixture, request):
     engine = request.getfuncargvalue(fixture)
     job = engine.launch(image=PYIMAGE, command=fn,
                         interpreter=PYVERSION, when_finished=_callback, persist_references=True)
+    print(job.rundata)
     job.wait()
 
     assert job.function_result is testobj
@@ -344,88 +364,9 @@ def _runcall(fixture, request, function, *args, **kwargs):
     engine = request.getfuncargvalue(fixture)
     fn = pyccc.PythonCall(function, *args, **kwargs)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
+    print(job.rundata)
     job.wait()
     return job.result
-
-
-@pytest.mark.skipif('CI_PROJECT_ID' in os.environ,
-                    reason="Can't mount docker socket in codeship")
-def test_docker_socket_mount_with_engine_option(local_docker_engine):
-    engine = local_docker_engine
-
-    job = engine.launch(image='docker',
-                        command='docker ps -q --no-trunc',
-                        engine_options={'mount_docker_socket': True})
-    job.wait()
-    running = job.stdout.strip().splitlines()
-    assert job.jobid in running
-
-
-@pytest.mark.skipif('CI_PROJECT_ID' in os.environ,
-                    reason="Can't mount docker socket in codeship")
-def test_docker_socket_mount_withdocker_option(local_docker_engine):
-    engine = local_docker_engine
-
-    job = engine.launch(image='docker',
-                        command='docker ps -q --no-trunc',
-                        withdocker=True)
-    job.wait()
-    running = job.stdout.strip().splitlines()
-    assert job.jobid in running
-
-
-def test_docker_volume_mount(local_docker_engine):
-    """
-    Note:
-        The test context is not necessarily the same as the bind mount context!
-        These tests will run in containers themselves, so we can't assume
-        that any directories accessible to the tests are bind-mountable.
-
-        Therefore we just test a named volume here.
-    """
-    import subprocess, uuid
-    engine = local_docker_engine
-    key = uuid.uuid4()
-    volname = 'my-mounted-volume-%s' % key
-
-    # Create a named volume with a file named "keyfile" containing a random uuid4
-    subprocess.check_call(('docker volume rm {vn}; docker volume create {vn}; '
-                          'docker run -v {vn}:/mounted alpine sh -c "echo {k} > /mounted/keyfile"')
-                          .format(vn=volname, k=key),
-                          shell=True)
-
-    job = engine.launch(image='docker',
-                        command='cat /mounted/keyfile',
-                        engine_options={'volumes': {volname: '/mounted'}})
-    job.wait()
-    result = job.stdout.strip()
-    assert result == str(key)
-
-
-def test_readonly_docker_volume_mount(local_docker_engine):
-    engine = local_docker_engine
-    mountdir = '/tmp'
-    job = engine.launch(image='docker',
-                        command='echo blah > /mounted/blah',
-                        engine_options={'volumes':
-                                            {mountdir: ('/mounted', 'ro')}})
-    job.wait()
-    assert isinstance(job.exitcode, int)
-    assert job.exitcode != 0
-
-
-def test_set_workingdir_docker(local_docker_engine):
-    engine = local_docker_engine
-    job = engine.launch(image='docker', command='pwd', workingdir='/testtest-dir-test')
-    job.wait()
-    assert job.stdout.strip() == '/testtest-dir-test'
-
-
-def test_set_workingdir_subprocess(subprocess_engine, tmpdir):
-    engine = subprocess_engine
-    job = engine.launch(image=None, command='pwd', workingdir=str(tmpdir))
-    job.wait()
-    assert job.stdout.strip() == str(tmpdir)
 
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
@@ -434,13 +375,17 @@ def test_clean_working_dir(fixture, request):
     """
     engine = request.getfuncargvalue(fixture)
     job = engine.launch(image='alpine', command='ls')
+    print(job.rundata)
     job.wait()
     assert job.stdout.strip() == ''
 
 
-class no_context():  # context manager that does nothing that can be used conditionaly
+class no_context(): 
+    """context manager that does nothing -- useful if we need to conditionally apply a context
+    """
     def __enter__(self):
         return None
+
     def __exit__(self, exc_type, exc_value, traceback):
         return False
 
@@ -448,11 +393,11 @@ class no_context():  # context manager that does nothing that can be used condit
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_abspath_input_files(fixture, request):
     engine = request.getfuncargvalue(fixture)
-    with pytest.raises(ValueError) if isinstance(engine, pyccc.Subprocess) else no_context():
-        # this is OK with docker but should fail with a subprocess
+    with no_context() if engine.ABSPATHS else pytest.raises(pyccc.PathError):
         job = engine.launch(image='alpine', command='cat /opt/a',
                             inputs={'/opt/a': pyccc.LocalFile(os.path.join(THISDIR, 'data', 'a'))})
-    if not isinstance(engine, pyccc.Subprocess):
+    if engine.ABSPATHS:
+        print(job.rundata)
         job.wait()
         assert job.exitcode == 0
         assert job.stdout.strip() == 'a'
@@ -465,6 +410,7 @@ def test_directory_input(fixture, request):
     job = engine.launch(image='alpine', command='cat data/a data/b',
                         inputs={'data':
                                     pyccc.LocalDirectoryReference(os.path.join(THISDIR, 'data'))})
+    print(job.rundata)
     job.wait()
     assert job.exitcode == 0
     assert job.stdout.strip() == 'a\nb'
@@ -475,11 +421,13 @@ def test_passing_files_between_jobs(fixture, request):
     engine = request.getfuncargvalue(fixture)
 
     job1 = engine.launch(image='alpine', command='echo hello > world')
+    print('job1:', job1.rundata)
     job1.wait()
     assert job1.exitcode == 0
 
     job2 = engine.launch(image='alpine', command='cat helloworld',
                          inputs={'helloworld': job1.get_output('world')})
+    print('job2:', job2.rundata)
     job2.wait()
     assert job2.exitcode == 0
     assert job2.stdout.strip() == 'hello'
@@ -492,6 +440,27 @@ def test_job_env_vars(fixture, request):
     job = engine.launch(image='alpine',
                         command='echo ${AA} ${BB}',
                         env={'AA': 'hello', 'BB':'world'})
+    print(job.rundata)
     job.wait()
     assert job.exitcode == 0
     assert job.stdout.strip() == 'hello world'
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_get_job(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+    job = engine.launch(image='alpine',
+                        command='sleep 1 && echo nice nap')
+
+    try:
+        newjob = engine.get_job(job.jobid)
+    except NotImplementedError:
+        pytest.skip('get_job raised NotImplementedError for %s' % fixture)
+
+    assert job.jobid == newjob.jobid
+    job.wait()
+    assert newjob.status == job.status
+
+    assert newjob.stdout == job.stdout
+    assert newjob.stderr == job.stderr
+

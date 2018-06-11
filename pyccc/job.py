@@ -22,6 +22,8 @@ from past.builtins import basestring
 
 import fnmatch
 
+from mdtcollections import DotDict
+
 import pyccc
 from pyccc import files, status
 from pyccc.utils import *
@@ -30,7 +32,9 @@ from pyccc.utils import *
 def exports(o):
     __all__.append(o.__name__)
     return o
-__all__ = []
+
+
+__all__ = ['Job']
 
 
 class EngineFunction(object):
@@ -95,10 +99,11 @@ class Job(object):
         self.command = if_not_none(command, '')
         self.engine_options = if_not_none(engine_options, {})
         self.workingdir = workingdir
-        self.env = env
+        self.rundata = DotDict()
+        self.env = if_not_none(env, {})
 
-        self.inputs = inputs
-        if self.inputs is not None:  # translate strings into file objects
+        self.inputs = if_not_none(inputs, {})
+        if self.inputs:  # translate strings into file objects
             for filename, fileobj in inputs.items():
                 if isinstance(fileobj, basestring):
                     self.inputs[filename] = files.StringContainer(fileobj)
@@ -118,7 +123,6 @@ class Job(object):
 
     def _reset(self):
         self._submitted = False
-        self._started = False
         self._final_stdout = None
         self._final_stderr = None
         self._finished = False
@@ -136,7 +140,7 @@ class Job(object):
 
     def __str__(self):
         desc = ['Job "%s" status:%s' % (self.name, self.status)]
-        if self.jobid: desc.append('jobid:%s' % self.jobid)
+        if self.jobid: desc.append('jobid:%s' % (self.jobid,) )
         if self.engine: desc.append('engine:%s' % type(self.engine).__name__)
         return ' '.join(desc)
 

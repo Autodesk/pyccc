@@ -25,6 +25,14 @@ class EngineBase(object):
     This class defines the implementation only - you intantiate one of its subclasses
     """
 
+    USES_IMAGES = None
+    "bool: subclasses should set this to indicate whether they use the `job.image` field"
+
+    ABSPATHS = None
+    """bool: subclasses should set this to indicate whether files can
+             be referenced via absolute path"""
+
+
     hostname = 'not specified'  # this should be overidden in subclass init methods
 
     def __call__(self, *args, **kwargs):
@@ -58,6 +66,23 @@ class EngineBase(object):
             return PythonJob(self, image, command, **kwargs)
         else:
             return Job(self, image, command, **kwargs)
+
+    def get_job(self, jobid):
+        """ Return a Job object for this job.
+
+        The returned object will be suitable for retrieving output, but depending on the engine,
+        may not populate all fields used at launch time (such as `job.inputs`, `job.commands`, etc.)
+
+        Args:
+            jobid (Any): job id object
+
+        Returns:
+            pyccc.job.Job: job object for this job id
+
+        Raises:
+            pyccc.exceptions.JobNotFound: if no job could be located for this jobid
+        """
+        raise NotImplementedError()
 
     def submit(self, job):
         """

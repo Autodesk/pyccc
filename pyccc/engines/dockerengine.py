@@ -19,15 +19,19 @@ from past.builtins import basestring
 
 import subprocess
 
-import docker
+import docker.errors
+
 from .. import docker_utils as du, DockerMachineError
-from .. import utils, files, status
+from .. import utils, files, status, exceptions
 from . import EngineBase
 
 
 class Docker(EngineBase):
     """ A compute engine - uses a docker server to run jobs
     """
+    USES_IMAGES = True
+    ABSPATHS = True
+
     def __init__(self, client=None, workingdir='/workingdir'):
         """ Initialization:
 
@@ -61,6 +65,51 @@ class Docker(EngineBase):
         version = self.client.version()
         return version
 
+    def get_job(self, jobid):
+        """ Return a Job object for the requested job id.
+
+        The returned object will be suitable for retrieving output, but depending on the engine,
+        may not populate all fields used at launch time (such as `job.inputs`, `job.commands`, etc.)
+
+        Args:
+            jobid (str): container id
+
+        Returns:
+            pyccc.job.Job: job object for this container
+
+        Raises:
+            pyccc.exceptions.JobNotFound: if no job could be located for this jobid
+        """
+        import shlex
+        from pyccc.job import Job
+
+        job = Job(engine=self)
+        job.jobid = job.rundata.containerid = jobid
+        try:
+            jobdata = self.client.inspect_container(job.jobid)
+        except docker.errors.NotFound:
+            raise exceptions.JobNotFound(
+                    'The daemon could not find containter "%s"' % job.jobid)
+
+        cmd = jobdata['Config']['Cmd']
+        entrypoint = jobdata['Config']['Entrypoint']
+
+        if len(cmd) == 3 and cmd[0:2] == ['sh', '-c']:
+            cmd = cmd[2]
+        elif entrypoint is not None:
+            cmd = entrypoint + cmd
+
+        if isinstance(cmd, list):
+            cmd = ' '.join(shlex.quote(x) for x in cmd)
+
+        job.command = cmd
+        job.env = jobdata['Config']['Env']
+        job.workingdir = jobdata['Config']['WorkingDir']
+        job.rundata.container = jobdata
+
+        return job
+
+
     def submit(self, job):
         """ Submit job to the engine
 
@@ -76,10 +125,10 @@ class Docker(EngineBase):
 
         container_args = self._generate_container_args(job)
 
-        job.container = self.client.create_container(job.imageid, **container_args)
-        self.client.start(job.container)
-        job.containerid = job.container['Id']
-        job.jobid = job.containerid
+        job.rundata.container = self.client.create_container(job.imageid, **container_args)
+        self.client.start(job.rundata.container)
+        job.rundata.containerid = job.rundata.container['Id']
+        job.jobid = job.rundata.containerid
 
     def _generate_container_args(self, job):
         container_args = dict(command="sh -c '%s'" % job.command,
@@ -104,7 +153,6 @@ class Docker(EngineBase):
                 bind = '%s:%s:%s' % (volume, mountpoint, mode)
             else:
                 mountpoint = mount
-                mode = None
                 bind = '%s:%s' % (volume, mountpoint)
 
             volumes.append(mountpoint)
@@ -117,17 +165,17 @@ class Docker(EngineBase):
         return container_args
 
     def wait(self, job):
-        stat = self.client.wait(job.container)
+        stat = self.client.wait(job.rundata.container)
         if isinstance(stat, int):  # i.e., docker<3
             return stat
         else:  # i.e., docker>=3
             return stat['StatusCode']
 
     def kill(self, job):
-        self.client.kill(job.container)
+        self.client.kill(job.rundata.container)
 
     def get_status(self, job):
-        inspect = self.client.inspect_container(job.containerid)
+        inspect = self.client.inspect_container(job.rundata.containerid)
         if inspect['State']['Running']:
             return status.RUNNING
         else:
@@ -135,11 +183,11 @@ class Docker(EngineBase):
 
     def get_directory(self, job, path):
         docker_host = du.kwargs_from_client(self.client)
-        remotedir = files.DockerArchive(docker_host, job.containerid, path)
+        remotedir = files.DockerArchive(docker_host, job.rundata.containerid, path)
         return remotedir
 
     def _list_output_files(self, job):
-        docker_diff = self.client.diff(job.container)
+        docker_diff = self.client.diff(job.rundata.container)
         if docker_diff is None:
             return {}
 
@@ -159,11 +207,11 @@ class Docker(EngineBase):
             else:
                 relative_path = filename
 
-            remotefile = files.LazyDockerCopy(docker_host, job.containerid, filename)
+            remotefile = files.LazyDockerCopy(docker_host, job.rundata.containerid, filename)
             output_files[relative_path] = remotefile
         return output_files
 
     def _get_final_stds(self, job):
-        stdout = self.client.logs(job.container, stdout=True, stderr=False)
-        stderr = self.client.logs(job.container, stdout=False, stderr=True)
+        stdout = self.client.logs(job.rundata.container, stdout=True, stderr=False)
+        stderr = self.client.logs(job.rundata.container, stdout=False, stderr=True)
         return stdout.decode('utf-8'), stderr.decode('utf-8')
