@@ -32,7 +32,7 @@ setup(
     version=versioneer.get_version(),
     classifiers=CLASSIFIERS.splitlines(),
     packages=find_packages(),
-    include_package_data=True,
+    package_data={'pyccc':['tests/data/*']},
     cmdclass=versioneer.get_cmdclass(),
     install_requires=requirements,
     url='http://github.com/autodesk/pyccc',
