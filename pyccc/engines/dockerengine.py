@@ -25,6 +25,10 @@ from .. import docker_utils as du, DockerMachineError
 from .. import utils, files, status, exceptions
 from . import EngineBase
 
+CTR_MODIFIED = 0
+CTR_ADDED = 1
+CTR_DELETED = 2
+
 
 class Docker(EngineBase):
     """ A compute engine - uses a docker server to run jobs
@@ -191,7 +195,8 @@ class Docker(EngineBase):
         if docker_diff is None:
             return {}
 
-        changed_files = [f['Path'] for f in docker_diff]
+        changed_files = [f['Path'] for f in docker_diff
+                         if f['Kind'] in (CTR_MODIFIED, CTR_ADDED)]
         file_paths = utils.remove_directories(changed_files)
         docker_host = du.kwargs_from_client(self.client)
 
