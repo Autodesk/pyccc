@@ -417,6 +417,17 @@ def test_directory_input(fixture, request):
 
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_deleted_file_is_not_returned(fixture, request):
+    engine = request.getfuncargvalue(fixture)
+    job = engine.launch(image='alpine', command='mv a b',
+                        inputs={'a': pyccc.LocalFile(os.path.join(THISDIR, 'data', 'a'))})
+    job.wait()
+    outputs = job.get_output()
+    assert 'a' not in outputs
+    assert 'b' in outputs
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_passing_files_between_jobs(fixture, request):
     engine = request.getfuncargvalue(fixture)
 
