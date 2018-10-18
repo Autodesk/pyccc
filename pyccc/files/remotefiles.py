@@ -42,9 +42,17 @@ class LazyFetcherBase(CachedFile):
     A base class for for dealing with files that need to be downloaded - they are cached
     locally when downloaded.
     """
+    REMOTE = True
+
     def __init__(self):
         self._fetched = False
         self.localpath = None
+
+    def size_bytes(self):
+        if self.localpath is not None:
+            return super().size_bytes()
+        else:
+            raise NotImplementedError("Sizes only available for local files")
 
     put = _FetchFunction('put')
     open = _FetchFunction('open')

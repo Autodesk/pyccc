@@ -77,6 +77,12 @@ class StringContainer(FileReferenceBase):
                 content = self._contents  # unicode in, unicode out
             return io.StringIO(content)
 
+    def size_bytes(self, encoding=ENCODING):
+        if not self._isbytes:
+            return len(self._contents.encode(encoding))
+        else:
+            return len(self._contents)
+
     @property
     def _isbytes(self):
         if PYVERSION == 2:

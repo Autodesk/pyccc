@@ -29,6 +29,7 @@ def typedfixture(*types, **kwargs):
     return fixture_wrapper
 
 BYTES_CONTENT = b'abcd\n1234'
+BYTES_LEN = len(BYTES_CONTENT)
 STRING_CONTENT = u'abcd\n1234'
 LINES_CONTENT = ['abcd\n',
                  '1234']
@@ -94,6 +95,18 @@ def test_file_container(fixture, request):
     assert my_container.read() == STRING_CONTENT
     assert my_container.read('rb') == BYTES_CONTENT
 
+
+@pytest.mark.parametrize('fixture', fixture_types['file_ref'])
+def test_file_size(fixture, request):
+    my_container = request.getfuncargvalue(fixture)
+    try:
+        assert my_container.size_bytes() == BYTES_LEN
+    except NotImplementedError:
+        if my_container.REMOTE:
+            pytest.skip("No remote file sizes")
+        else:
+            raise
+        
 
 @pytest.mark.parametrize('fixture', fixture_types['file_ref'])
 def test_containers_open_filelike_object(fixture, request):

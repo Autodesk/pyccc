@@ -99,6 +99,7 @@ class FileReferenceBase(object):
      * read(mode, encoding): equivalent of self.open(mode, encoding).read()
      * put(filename): create a local copy of this file and return a reference to it
     """
+    REMOTE = False
 
     def put(self, filename):
         """Write the file to the given path
@@ -114,6 +115,9 @@ class FileReferenceBase(object):
         with self.open('rb') as infile, open(target, 'wb') as outfile:
             shutil.copyfileobj(infile, outfile)
         return LocalFile(target)
+
+    def size_bytes(self):
+        raise NotImplementedError()
 
     def __iter__(self):
         # This is the worst file-reader ever

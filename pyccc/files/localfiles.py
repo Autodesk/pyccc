@@ -70,6 +70,10 @@ class LocalFile(FileContainer):
         self.sourcetype = 'Local file on %s' % socket.gethostname()
         self.encoded_with = encoded_with
 
+    def size_bytes(self):
+        import os
+        return os.path.getsize(self.localpath)
+
     def put(self, filename, encoding=None):
         target = get_target_path(filename, self.source)
         if encoding is not None:

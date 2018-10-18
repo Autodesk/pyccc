@@ -43,6 +43,9 @@ class BytesContainer(FileReferenceBase):
         self.localpath = None
         self.sourcetype = 'runtime'
 
+    def size_bytes(self):
+        return len(self._contents)
+
     def put(self, filename, encoding=None):
         """Write the file to the given path
 
@@ -103,6 +106,13 @@ class BytesContainer(FileReferenceBase):
 class BZ2String(BytesContainer):
     """ BZ2-compressed file
     """
+    def __init__(self, contents, *args, **kwargs):
+        self._size = len(contents)
+        super(BZ2String, self).__init__(contents, *args, **kwargs)
+
+    def size_bytes(self):
+        return self._size
+
     @property
     def _contents(self):
         import bz2
