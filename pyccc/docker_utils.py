@@ -54,16 +54,14 @@ def create_build_context(image, inputs, wdir):
     build_context = {}
 
     # This loop creates a Build Context for building the provisioned image
-    # Each input file is assigned a unique name, in preparation for creating a tar archive
+    # We create a tar archive to be added to the root of the image filesystem
     if inputs:
+        dockerlines.append('COPY root /')
         for ifile, (path, obj) in enumerate(inputs.items()):
-            src = os.path.basename(path) + '-%s' % ifile  # mangling to ensure uniqueness
-            if os.path.isabs(path):
-                dest = path
-            else:
-                dest = os.path.join(wdir, path)
-            dockerlines.append('COPY %s %s' % (src, dest))
-            build_context[src] = obj
+            if not os.path.isabs(path):
+                path = os.path.join(wdir, path)
+            assert path[0] == '/'
+            build_context['root' + path] = obj
 
     dockerstring = '\n'.join(dockerlines)
     build_context['Dockerfile'] = pyccc.BytesContainer(dockerstring.encode('utf-8'))
