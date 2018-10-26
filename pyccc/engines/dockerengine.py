@@ -36,6 +36,11 @@ class Docker(EngineBase):
     USES_IMAGES = True
     ABSPATHS = True
 
+    BULK_OUTPUT_FILE_THRESHOLD = 5
+    """int: threshold for determining whether to copy files in bulk or one at a time.
+    Not a whole lot of justification for this number, just a rough heuristic
+    """
+
     def __init__(self, client=None, workingdir='/workingdir'):
         """ Initialization:
 
@@ -113,7 +118,6 @@ class Docker(EngineBase):
 
         return job
 
-
     def submit(self, job):
         """ Submit job to the engine
 
@@ -189,6 +193,47 @@ class Docker(EngineBase):
         docker_host = du.kwargs_from_client(self.client)
         remotedir = files.DockerArchive(docker_host, job.rundata.containerid, path)
         return remotedir
+
+    def dump_all_outputs(self, job, target, abspaths=None):
+        """ Specialized dumping strategy - copy the entire working directory, then discard
+        the input files that came along for the ride.
+
+        Not used if there are absolute paths
+
+        This is slow and wasteful if there are big input files
+        """
+        import os
+        import shutil
+        from pathlib import Path
+        from future.utils import PY2
+
+        root = Path(target)
+        true_outputs = job.get_output()
+
+        if abspaths or len(true_outputs) < self.BULK_OUTPUT_FILE_THRESHOLD:
+            return super().dump_all_outputs(job, root, abspaths)
+
+        stagingdir = root/Path(job.workingdir).name
+        workdir = job.get_directory(job.workingdir)
+        root.mkdir(exist_ok=True, parents=False)
+        if stagingdir.exists():
+            if PY2:
+                raise IOError('Path % exists' % stagingdir)
+            else:
+                raise FileExistsError(stagingdir)
+        workdir.put(root)
+        assert stagingdir.is_dir()
+        assert root in stagingdir.parents
+
+        for pathstr in true_outputs:
+            if os.path.isabs(pathstr):
+                continue
+            destpath = root / pathstr
+            currpath = stagingdir / pathstr
+            destpath.parent.mkdir(exist_ok=True, parents=True)
+            currpath.rename(destpath)
+
+        shutil.rmtree(stagingdir)
 
     def _list_output_files(self, job):
         docker_diff = self.client.diff(job.rundata.container)
