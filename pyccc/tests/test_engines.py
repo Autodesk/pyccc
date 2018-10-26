@@ -82,9 +82,9 @@ def test_output_dump(fixture, request, tmpdir):
     import shutil
 
     engine = request.getfuncargvalue(fixture)
-    dirpath = Path(tmpdir)
+    dirpath = Path(str(tmpdir))
     subdir = dirpath / 'test'
-    expected_exception = IOError if PY2 else FileExistsError
+    expected_exception = OSError if PY2 else FileExistsError
     expected_files = set('a.txt b c d.txt e.gif dirA/A dirA/B dirB/C'.split())
 
     job = engine.launch('alpine',
@@ -104,7 +104,7 @@ def test_output_dump(fixture, request, tmpdir):
         job.dump_all_outputs(str(subdir), exist_ok=False)
 
     # test that directory created if it doesn't exist
-    shutil.rmtree(subdir)
+    shutil.rmtree(str(subdir))
     job.dump_all_outputs(str(subdir), exist_ok=False)
     assert subdir.is_dir()
 

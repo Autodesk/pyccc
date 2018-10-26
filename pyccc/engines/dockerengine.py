@@ -16,8 +16,12 @@ from future import standard_library
 standard_library.install_aliases()
 from future.builtins import *
 from past.builtins import basestring
+from future.utils import PY2
 
-import subprocess
+if PY2:
+    from past.builtins import str as native_str
+else:
+    native_str = str
 
 import docker.errors
 
@@ -205,23 +209,23 @@ class Docker(EngineBase):
         import os
         import shutil
         from pathlib import Path
-        from future.utils import PY2
 
-        root = Path(target)
+        root = Path(native_str(target))
         true_outputs = job.get_output()
 
         if abspaths or len(true_outputs) < self.BULK_OUTPUT_FILE_THRESHOLD:
             return super().dump_all_outputs(job, root, abspaths)
 
-        stagingdir = root/Path(job.workingdir).name
+        stagingdir = root / Path(native_str(job.workingdir)).name
         workdir = job.get_directory(job.workingdir)
-        root.mkdir(exist_ok=True, parents=False)
+        if not root.is_dir():
+            root.mkdir(parents=False)
         if stagingdir.exists():
             if PY2:
                 raise IOError('Path % exists' % stagingdir)
             else:
                 raise FileExistsError(stagingdir)
-        workdir.put(root)
+        workdir.put(str(root))
         assert stagingdir.is_dir()
         assert root in stagingdir.parents
 
@@ -230,10 +234,11 @@ class Docker(EngineBase):
                 continue
             destpath = root / pathstr
             currpath = stagingdir / pathstr
-            destpath.parent.mkdir(exist_ok=True, parents=True)
+            if not destpath.parent.is_dir():
+                destpath.parent.mkdir(parents=True)
             currpath.rename(destpath)
 
-        shutil.rmtree(stagingdir)
+        shutil.rmtree(str(stagingdir))
 
     def _list_output_files(self, job):
         docker_diff = self.client.diff(job.rundata.container)

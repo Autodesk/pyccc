@@ -16,11 +16,13 @@ from future import standard_library
 standard_library.install_aliases()
 from future.builtins import *
 from future.utils import PY2
-
 from pyccc import PythonCall, PythonJob, Job
 
 if PY2:
+    from past.builtins import str as native_str
     IsADirectoryError = IOError
+else:
+    native_str = str
 
 
 class EngineBase(object):
@@ -64,23 +66,25 @@ class EngineBase(object):
         Subclasses should offer faster implementations, if available
         """
         from pathlib import Path
-        root = Path(target)
+        root = Path(native_str(target))
 
         for outputpath, outputfile in job.get_output().items():
-            path = Path(outputpath)
+            path = Path(native_str(outputpath))
 
             # redirect absolute paths into the appropriate subdirectory
             if path.is_absolute() and abspaths:
-                path = Path(abspaths, *path.parts[1:])
+                path = Path(native_str(abspaths), *path.parts[1:])
 
             dest = root / path
-            dest.parent.mkdir(parents=True, exist_ok=True)
+            if not dest.parent.is_dir():
+                dest.parent.mkdir(parents=True)
             if dest.is_file():
                 dest.unlink()
             try:
-                outputfile.put(dest)
+                outputfile.put(str(dest))
             except IsADirectoryError:
-                (root / path).mkdir(exist_ok=True, parents=True)
+                if not dest.is_dir():
+                    dest.mkdir(parents=True)
 
     def launch(self, image, command, **kwargs):
         """
