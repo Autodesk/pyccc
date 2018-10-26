@@ -51,9 +51,9 @@ def get_target_path(destination, origname):
     Examples:
         >>> import os
         >>> os.makedirs('./a')
-        >>> _get_target_path('./a', '/tmp/myfile')
+        >>> get_target_path('./a', '/tmp/myfile')
         './myfile'
-        >>> _get_target_path('./a/b', '/tmp/myfile')
+        >>> get_target_path('./a/b', '/tmp/myfile')
         './a/b'
 
     Raises:
@@ -115,6 +115,9 @@ class FileReferenceBase(object):
         with self.open('rb') as infile, open(target, 'wb') as outfile:
             shutil.copyfileobj(infile, outfile)
         return LocalFile(target)
+
+    def open(self, mode='r', encoding=None):
+        raise NotImplementedError()
 
     def size_bytes(self):
         raise NotImplementedError()
