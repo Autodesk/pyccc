@@ -110,19 +110,13 @@ class Subprocess(EngineBase):
         targetpath = self._check_file_is_under_workingdir(path, job.rundata.localdir)
         return files.LocalDirectoryReference(targetpath)
 
-    def _list_output_files(self, job, dir=None):
-        if dir is None: dir = job.rundata.localdir
-        filenames = {}
-        for fname in os.listdir(dir):
-            abs_path = '%s/%s' % (dir, fname)
-            if os.path.islink(dir):
-                continue
-            elif os.path.isdir(fname):
-                dirfiles = self._list_output_files(job, dir=abs_path)
-                filenames.update({'%s/%s' % (fname, f): obj
-                                  for f, obj in dirfiles.items()})
-            else:
-                filenames[fname] = files.LocalFile(abs_path)
+    def _list_output_files(self, job, dirpath=None):
+        from pathlib import Path
+        if dirpath is None:
+            dirpath = job.rundata.localdir
+        filenames = {str(f.relative_to(dirpath)): files.LocalFile(str(f.absolute()))
+                     for f in Path(dirpath).glob('**/*')
+                     if f.is_file() and not f.is_symlink()}
         return filenames
 
     def _get_final_stds(self, job):
