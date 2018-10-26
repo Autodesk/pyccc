@@ -26,6 +26,9 @@ import pyccc
 from .engine_fixtures import *
 from . import function_tests
 
+from future.utils import PY2
+
+
 PYVERSION = '%s.%s' % (sys.version_info.major, sys.version_info.minor)
 PYIMAGE = 'python:%s-slim' % PYVERSION
 THISDIR = os.path.dirname(__file__)
@@ -71,6 +74,39 @@ def test_file_glob(fixture, request):
 
     assert set(job.get_output().keys()) <= set('a.txt b c d.txt e.gif'.split())
     assert set(job.glob_output('*.txt').keys()) == set('a.txt d.txt'.split())
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_output_dump(fixture, request, tmpdir):
+    from pathlib import Path
+    import shutil
+
+    engine = request.getfuncargvalue(fixture)
+    dirpath = Path(tmpdir)
+    subdir = dirpath / 'test'
+    expected_exception = IOError if PY2 else FileExistsError
+    expected_files = set('a.txt b c d.txt e.gif dirA/A dirA/B dirB/C'.split())
+
+    job = engine.launch('alpine',
+                        'mkdir dirA dirB && touch a.txt b c d.txt e.gif dirA/A dirA/B dirB/C')
+    print(job.rundata)
+    job.wait()
+    job.dump_all_outputs(str(dirpath), exist_ok=True)
+
+    # test that output files were dumped
+    found_files = set(str(p.relative_to(dirpath)) for p in dirpath.glob('**/*')
+                      if not p.is_dir())
+    assert found_files == expected_files
+
+    # test that exception raised if directory exists and exist_ok is False
+    subdir.mkdir()
+    with pytest.raises(expected_exception):
+        job.dump_all_outputs(str(subdir), exist_ok=False)
+
+    # test that directory created if it doesn't exist
+    shutil.rmtree(subdir)
+    job.dump_all_outputs(str(subdir), exist_ok=False)
+    assert subdir.is_dir()
 
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])

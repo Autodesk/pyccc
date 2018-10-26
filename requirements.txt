@@ -1,6 +1,7 @@
 chardet
 docker >=3.2.1
 funcsigs ; python_version < '3.3'
+pathlib ; python_version < '3.4'
 future
 requests
 mdtcollections

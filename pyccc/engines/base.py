@@ -15,8 +15,12 @@ from __future__ import print_function, unicode_literals, absolute_import, divisi
 from future import standard_library
 standard_library.install_aliases()
 from future.builtins import *
+from future.utils import PY2
 
 from pyccc import PythonCall, PythonJob, Job
+
+if PY2:
+    IsADirectoryError = IOError
 
 
 class EngineBase(object):
@@ -53,6 +57,30 @@ class EngineBase(object):
         except:
             return '<%s engine at %s (custom __repr__ failed)>' % (
                 type(self).__name__, hex(id(self)))
+
+    def dump_all_outputs(self, job, target, abspaths=None):
+        """ Default dumping strategy - potentially slow for large numbers of files
+
+        Subclasses should offer faster implementations, if available
+        """
+        from pathlib import Path
+        root = Path(target)
+
+        for outputpath, outputfile in job.get_output().items():
+            path = Path(outputpath)
+
+            # redirect absolute paths into the appropriate subdirectory
+            if path.is_absolute() and abspaths:
+                path = Path(abspaths, *path.parts[1:])
+
+            dest = root / path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.is_file():
+                dest.unlink()
+            try:
+                outputfile.put(dest)
+            except IsADirectoryError:
+                (root / path).mkdir(exist_ok=True, parents=True)
 
     def launch(self, image, command, **kwargs):
         """

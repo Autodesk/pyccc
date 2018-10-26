@@ -279,3 +279,21 @@ class Job(object):
             return JobStatusDisplay(self)
         else:
             return 'Job "%s" launched. id:%s' % (self.name, self.jobid)
+
+    def dump_all_outputs(self, target, abspaths=None, exist_ok=False):
+        """ Dump all job outputs to a given directory
+
+        Output files under the workign directory will be written to the same relative
+        path under the directory target
+
+        Depending on engine implementation, this is often faster than iterating through
+        all outputs and writing them one-by-one
+
+        Params:
+            target (str): directory to write outputs to.
+            abspaths (str): subdirectory under target to write
+            exist_ok (bool): raise exception if directory already exists
+        """
+        if not os.path.exists(target) or not exist_ok:
+            os.mkdir(target)
+        self.engine.dump_all_outputs(self, target, abspaths)
