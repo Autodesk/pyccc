@@ -24,8 +24,18 @@ Operating System :: MacOS
 PYEXT = set('.py .pyc .pyo'.split())
 
 
+extras = {}
+requirements = []
 with open('requirements.txt', 'r') as reqfile:
-    requirements = [x.strip() for x in reqfile if x.strip()]
+    for line in reqfile:
+        fields = line.split(';')
+        if not fields:
+            continue
+        if len(fields) == 2:
+            extras.setdefault(':%s' % fields[1].strip(), []).append(fields[0])
+        else:
+            assert len(fields) == 1
+            requirements.append(fields[0])
 
 setup(
     name=PACKAGE_NAME,
@@ -35,6 +45,7 @@ setup(
     package_data={'pyccc': ['tests/data/*', 'static/*']},
     cmdclass=versioneer.get_cmdclass(),
     install_requires=requirements,
+    extras_require=extras,
     url='http://github.com/autodesk/pyccc',
     license='Apache 2.0',
     author='Aaron Virshup and Dion Amago, Autodesk Life Sciences',
