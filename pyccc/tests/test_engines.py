@@ -91,12 +91,8 @@ def test_output_dump(fixture, request, tmpdir):
                         'mkdir dirA dirB && touch a.txt b c d.txt e.gif dirA/A dirA/B dirB/C')
     print(job.rundata)
     job.wait()
-    job.dump_all_outputs(str(dirpath), exist_ok=True)
-
-    # test that output files were dumped
-    found_files = set(str(p.relative_to(dirpath)) for p in dirpath.glob('**/*')
-                      if not p.is_dir())
-    assert found_files == expected_files
+    job.dump_all_outputs(str(dirpath), exist_ok=True, update_references=False)
+    _verify_output_dump(dirpath, expected_files, job, outputs_updated=False)
 
     # test that exception raised if directory exists and exist_ok is False
     subdir.mkdir()
@@ -105,8 +101,57 @@ def test_output_dump(fixture, request, tmpdir):
 
     # test that directory created if it doesn't exist
     shutil.rmtree(str(subdir))
-    job.dump_all_outputs(str(subdir), exist_ok=False)
+    job.dump_all_outputs(str(subdir), exist_ok=False, update_references=True)
     assert subdir.is_dir()
+    _verify_output_dump(subdir, expected_files, job, outputs_updated=True)
+
+
+def _verify_output_dump(dirpath, expected_files, job, outputs_updated):
+    # test that output files were dumped
+    found_files = set(str(p.relative_to(dirpath)) for p in dirpath.glob('**/*')
+                      if not p.is_dir())
+    assert found_files == expected_files
+
+    # Make sure that references either are or are NOT pointing to the newly dumped outputs
+    for ff in found_files:
+        assert ff in job.get_output()
+        ref = job.get_output(ff)
+        if outputs_updated:
+            assert (getattr(ref, 'localpath')
+                    and os.path.normpath(ref.localpath) == os.path.normpath(str(dirpath/ff)))
+        else:
+            assert (not getattr(ref, 'localpath', None)
+                    or os.path.normpath(ref.localpath) != os.path.normpath(str(dirpath/ff)))
+
+
+@pytest.mark.parametrize('fixture', fixture_types['engine'])
+def test_output_dump_abspaths(fixture, request, tmpdir):
+    from pathlib import Path
+    engine = request.getfuncargvalue(fixture)
+    if not engine.ABSPATHS:
+        pytest.skip("Engine %s does not support absolute paths" % str(fixture))
+
+    p = Path(tmpdir)
+    job = engine.launch('alpine',
+                        'mkdir -p /opt/a && echo "hello world" > /opt/a/f')
+    job.wait()
+
+    # where we'll dump the outputs
+    abstmp = p / 'absdump'
+    reltmp = p / 'reldump'
+
+    # only changed files are relative to root, so this directory should be empty
+    job.dump_all_outputs(str(reltmp), update_references=False)
+    assert len(list(reltmp.glob('**/*'))) == 0
+
+    # the changed absolute-path files should be staged into the requests 'fsroot' directory
+    job.dump_all_outputs(str(abstmp), abspaths='fsroot')
+    outputs = list((abstmp/'fsroot').glob('**/*'))
+    assert len(outputs) == 3
+    optdir = abstmp / 'fsroot' / 'opt'
+    assert optdir.is_dir()
+    assert (optdir / 'a').is_dir()
+    assert (optdir / 'a' / 'f').is_file()
 
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
