@@ -21,6 +21,7 @@ from future.builtins import *
 from past.builtins import basestring
 
 import fnmatch
+import os
 
 from mdtcollections import DotDict
 
@@ -280,7 +281,7 @@ class Job(object):
         else:
             return 'Job "%s" launched. id:%s' % (self.name, self.jobid)
 
-    def dump_all_outputs(self, target, abspaths=None, exist_ok=False):
+    def dump_all_outputs(self, target, abspaths=None, exist_ok=False, update_references=True):
         """ Dump all job outputs to a given directory
 
         Output files under the workign directory will be written to the same relative
@@ -293,7 +294,32 @@ class Job(object):
             target (str): directory to write outputs to.
             abspaths (str): subdirectory under target to write
             exist_ok (bool): raise exception if directory already exists
+            update_references (bool): update internal outputs to reference the dumped files,
+                rather than their original locations
         """
         if not os.path.exists(target) or not exist_ok:
             os.mkdir(target)
         self.engine.dump_all_outputs(self, target, abspaths)
+
+        if update_references:
+            self.use_local_output_tree(target, abspaths)
+
+    def use_local_output_tree(self, target, abspaths=None):
+        """ Use to update references after they have been dumped somewhere locally
+        """
+        for path in list(self._output_files):
+            if not os.path.isabs(path):
+                localpath = os.path.join(target, path)
+            else:
+                if abspaths:
+                    localpath = os.path.join(target, abspaths, path.lstrip('/'))
+                else:
+                    continue
+
+            assert os.path.exists(localpath)
+            if os.path.isdir(localpath):
+                self._output_files[path] = files.LocalDirectoryReference(localpath)
+            else:
+                self._output_files[path] = files.LocalFile(localpath)
+
+
