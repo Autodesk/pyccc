@@ -72,8 +72,11 @@ class EngineBase(object):
             path = Path(native_str(outputpath))
 
             # redirect absolute paths into the appropriate subdirectory
-            if path.is_absolute() and abspaths:
-                path = Path(native_str(abspaths), *path.parts[1:])
+            if path.is_absolute():
+                if abspaths:
+                    path = Path(native_str(abspaths), *path.parts[1:])
+                else:
+                    continue
 
             dest = root / path
             if not dest.parent.is_dir():
