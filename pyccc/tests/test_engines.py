@@ -131,7 +131,7 @@ def test_output_dump_abspaths(fixture, request, tmpdir):
     if not engine.ABSPATHS:
         pytest.skip("Engine %s does not support absolute paths" % str(fixture))
 
-    p = Path(tmpdir)
+    p = Path(str(tmpdir))
     job = engine.launch('alpine',
                         'mkdir -p /opt/a && echo "hello world" > /opt/a/f')
     job.wait()
