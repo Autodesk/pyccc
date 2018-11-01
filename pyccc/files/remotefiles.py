@@ -25,6 +25,7 @@ import io
 import tarfile
 
 from . import CachedFile
+from .. import exceptions
 
 
 class _FetchFunction(object):
@@ -115,20 +116,41 @@ class LazyDockerCopy(LazyFetcherBase):
         super(LazyDockerCopy, self).__init__()
 
     def _fetch(self):
-        self._open_tmpfile()
+        import shutil
 
         # extracts the stream into a disk-spooled file-like object
+        tarfile_path = os.path.basename(self.containerpath)
         stream = self._get_tarstream()
-        with tempfile.SpooledTemporaryFile() as buffer:
-            for d in stream:
-                buffer.write(d)
-            buffer.seek(0)
-            tar = tarfile.open(fileobj=buffer)
-            file = tar.extractfile(os.path.basename(self.containerpath))
-            self.tmpfile.write(file.read())
+        try:
+            with tempfile.SpooledTemporaryFile() as buffer:
+                for d in stream:
+                    buffer.write(d)
+                buffer.seek(0)
+                tar = tarfile.open(fileobj=buffer)
+                filestream = tar.extractfile(tarfile_path)
 
-        stream.close()
-        self.tmpfile.close()
+                if filestream is None:
+                    fileinfo = tar.getmember(tarfile_path)
+                    if fileinfo.type == tarfile.DIRTYPE:
+                        from future.utils import PY2
+                        if PY2:
+                            import errno
+                            raise OSError(self, errno=errno.EISDIR)
+                        else:
+                            raise IsADirectoryError(self)
+
+                    else:
+                        raise exceptions.NotARegularFileError(self)
+
+                self._open_tmpfile()
+                try:
+                    shutil.copyfileobj(filestream, self.tmpfile)
+                finally:
+                    self.tmpfile.close()
+
+        finally:
+            stream.close()
+
         self.localpath = self.tmpfile.name
         self._fetched = True
 

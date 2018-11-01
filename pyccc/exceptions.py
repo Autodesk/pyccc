@@ -85,3 +85,7 @@ class PathError(Exception):
 class JobNotFound(Exception):
     """ The requested job was not found
     """
+
+class NotARegularFileError(Exception):
+    """ The requested path exists but does not correspond to a regular file
+    """

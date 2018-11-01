@@ -20,7 +20,7 @@ from pyccc import PythonCall, PythonJob, Job
 
 if PY2:
     from past.builtins import str as native_str
-    IsADirectoryError = IOError
+    IsADirectoryError = OSError
 else:
     native_str = str
 
