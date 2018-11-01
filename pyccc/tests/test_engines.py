@@ -61,8 +61,10 @@ def test_job_status(fixture, request):
     job.submit()
     print(job.rundata)
     assert job.status.lower() in ('queued', 'running', 'downloading')
+    assert not job.stopped
     job.wait()
     assert job.status.lower() == 'finished'
+    assert job.stopped
 
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])

@@ -206,6 +206,11 @@ class Job(object):
         else:
             return "Unsubmitted"
 
+    @property
+    def stopped(self):
+        _ = self.status
+        return bool(self._stopped)
+
     def _finish_job(self):
         """
         To be called after job has finished.
