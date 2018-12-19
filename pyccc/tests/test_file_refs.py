@@ -90,7 +90,7 @@ def docker_output_reference():
 
 @pytest.mark.parametrize('fixture', fixture_types['file_ref'])
 def test_file_container(fixture, request):
-    my_container = request.getfuncargvalue(fixture)
+    my_container = request.getfixturevalue(fixture)
     assert list(my_container) == LINES_CONTENT
     assert my_container.read() == STRING_CONTENT
     assert my_container.read('rb') == BYTES_CONTENT
@@ -98,7 +98,7 @@ def test_file_container(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['file_ref'])
 def test_file_size(fixture, request):
-    my_container = request.getfuncargvalue(fixture)
+    my_container = request.getfixturevalue(fixture)
     try:
         assert my_container.size_bytes() == BYTES_LEN
     except NotImplementedError:
@@ -110,7 +110,7 @@ def test_file_size(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['file_ref'])
 def test_containers_open_filelike_object(fixture, request):
-    ctr = request.getfuncargvalue(fixture)
+    ctr = request.getfixturevalue(fixture)
     assert list(ctr.open('r')) == LINES_CONTENT
     assert ctr.open('r').read() == STRING_CONTENT
     assert ctr.open('rb').read() == BYTES_CONTENT
@@ -155,7 +155,7 @@ def test_stringcontainer_handles_bytes(encoding):
 
 @pytest.mark.parametrize('fixture', fixture_types['file_ref'])
 def test_containers_are_pickleable(fixture, request):
-    ctr = request.getfuncargvalue(fixture)
+    ctr = request.getfixturevalue(fixture)
     newctr = pickle.loads(pickle.dumps(ctr))
     assert newctr.read() == ctr.read()
 

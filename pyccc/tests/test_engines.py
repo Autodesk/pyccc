@@ -46,7 +46,7 @@ def _raise_valueerror(msg):
 ###################
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_hello_world(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     job = engine.launch('alpine', 'echo hello world')
     print(job.rundata)
     job.wait()
@@ -55,7 +55,7 @@ def test_hello_world(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_job_status(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     job = engine.launch('alpine', 'sleep 3', submit=False)
     assert job.status.lower() == 'unsubmitted'
     job.submit()
@@ -69,7 +69,7 @@ def test_job_status(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_file_glob(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     job = engine.launch('alpine', 'touch a.txt b c d.txt e.gif')
     print(job.rundata)
     job.wait()
@@ -83,7 +83,7 @@ def test_output_dump(fixture, request, tmpdir):
     from pathlib import Path
     import shutil
 
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     dirpath = Path(str(tmpdir))
     subdir = dirpath / 'test'
     expected_exception = OSError if PY2 else FileExistsError
@@ -129,7 +129,7 @@ def _verify_output_dump(dirpath, expected_files, job, outputs_updated):
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_output_dump_abspaths(fixture, request, tmpdir):
     from pathlib import Path
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     if not engine.ABSPATHS:
         pytest.skip("Engine %s does not support absolute paths" % str(fixture))
 
@@ -158,7 +158,7 @@ def test_output_dump_abspaths(fixture, request, tmpdir):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_input_ouput_files(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     job = engine.launch(image='alpine',
                         command='cat a.txt b.txt > out.txt',
                         inputs={'a.txt': 'a',
@@ -170,7 +170,7 @@ def test_input_ouput_files(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_sleep_raises_jobstillrunning(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     job = engine.launch('alpine', 'sleep 5; echo done')
     print(job.rundata)
     with pytest.raises(pyccc.JobStillRunning):
@@ -181,7 +181,7 @@ def test_sleep_raises_jobstillrunning(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_python_function(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     pycall = pyccc.PythonCall(function_tests.fn, 5)
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
     print(job.rundata)
@@ -191,7 +191,7 @@ def test_python_function(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_python_instance_method(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     obj = function_tests.Cls()
     pycall = pyccc.PythonCall(obj.increment, by=2)
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
@@ -204,7 +204,7 @@ def test_python_instance_method(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_python_reraises_exception(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     pycall = pyccc.PythonCall(_raise_valueerror, 'this is my message')
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION)
     print(job.rundata)
@@ -216,7 +216,7 @@ def test_python_reraises_exception(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_builtin_imethod(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     mylist = [3, 2, 1]
     fn = pyccc.PythonCall(mylist.sort)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
@@ -273,7 +273,7 @@ def test_function_with_renamed_module_var(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_bash_exitcode(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     job = pyccc.Job(image='python:2.7-slim',
                     command='sleep 5 && exit 35',
                     engine=engine,
@@ -288,7 +288,7 @@ def test_bash_exitcode(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_python_exitcode(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     fn = pyccc.PythonCall(function_tests.sleep_then_exit_38)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
     print(job.rundata)
@@ -320,7 +320,7 @@ def test_persistence_assumptions(fixture, request):
     testobj.o = MyRefObj()
     testobj.o.o = testobj
 
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     pycall = pyccc.PythonCall(testobj.identity)
 
     # First the control experiment - references are NOT persisted
@@ -339,7 +339,7 @@ def test_persist_references_flag(fixture, request):
     testobj.o = MyRefObj()
     testobj.o.o = testobj
 
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     pycall = pyccc.PythonCall(testobj.identity)
 
     # With the right flag, references ARE now persisted
@@ -362,7 +362,7 @@ def test_persistent_and_nonpersistent_mixture(fixture, request):
     testobj._PERSIST_REFERENCES = False
     testobj.o._PERSIST_REFERENCES = False
 
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     pycall = pyccc.PythonCall(testobj.identity)
 
     job = engine.launch(PYIMAGE, pycall, interpreter=PYVERSION, persist_references=True)
@@ -380,7 +380,7 @@ def test_callback(fixture, request):
     def _callback(job):
         return job.get_output('out.txt').read().strip()
 
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     job = engine.launch(image=PYIMAGE,
                         command='echo hello world > out.txt',
                         when_finished=_callback)
@@ -392,7 +392,7 @@ def test_callback(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_unicode_stdout_and_return(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     fn = pyccc.PythonCall(function_tests.fn_prints_unicode)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
     print(job.rundata)
@@ -408,7 +408,7 @@ def test_callback_after_python_job(fixture, request):
         return job.function_result - 1
 
     fn = pyccc.PythonCall(function_tests.fn, 3.0)
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION, when_finished=_callback)
     print(job.rundata)
     job.wait()
@@ -426,7 +426,7 @@ def test_job_with_callback_and_references(fixture, request):
     testobj.obj = MyRefObj()
 
     fn = pyccc.PythonCall(testobj.tagme)
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     job = engine.launch(image=PYIMAGE, command=fn,
                         interpreter=PYVERSION, when_finished=_callback, persist_references=True)
     print(job.rundata)
@@ -444,7 +444,7 @@ def test_job_with_callback_and_references(fixture, request):
 
 
 def _runcall(fixture, request, function, *args, **kwargs):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     fn = pyccc.PythonCall(function, *args, **kwargs)
     job = engine.launch(image=PYIMAGE, command=fn, interpreter=PYVERSION)
     print(job.rundata)
@@ -456,7 +456,7 @@ def _runcall(fixture, request, function, *args, **kwargs):
 def test_clean_working_dir(fixture, request):
     """ Because of some weird results that seemed to indicate the wrong run dir
     """
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     job = engine.launch(image='alpine', command='ls')
     print(job.rundata)
     job.wait()
@@ -475,7 +475,7 @@ class no_context():
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_abspath_input_files(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     with no_context() if engine.ABSPATHS else pytest.raises(pyccc.PathError):
         job = engine.launch(image='alpine', command='cat /opt/a',
                             inputs={'/opt/a': pyccc.LocalFile(os.path.join(THISDIR, 'data', 'a'))})
@@ -488,7 +488,7 @@ def test_abspath_input_files(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_directory_input(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
 
     job = engine.launch(image='alpine', command='cat data/a data/b',
                         inputs={'data':
@@ -501,7 +501,7 @@ def test_directory_input(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_deleted_file_is_not_returned(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     job = engine.launch(image='alpine', command='mv a b',
                         inputs={'a': pyccc.LocalFile(os.path.join(THISDIR, 'data', 'a'))})
     job.wait()
@@ -512,7 +512,7 @@ def test_deleted_file_is_not_returned(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_passing_files_between_jobs(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
 
     job1 = engine.launch(image='alpine', command='echo hello > world')
     print('job1:', job1.rundata)
@@ -529,7 +529,7 @@ def test_passing_files_between_jobs(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_job_env_vars(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
 
     job = engine.launch(image='alpine',
                         command='echo ${AA} ${BB}',
@@ -542,7 +542,7 @@ def test_job_env_vars(fixture, request):
 
 @pytest.mark.parametrize('fixture', fixture_types['engine'])
 def test_get_job(fixture, request):
-    engine = request.getfuncargvalue(fixture)
+    engine = request.getfixturevalue(fixture)
     job = engine.launch(image='alpine',
                         command='sleep 1 && echo nice nap')
 
