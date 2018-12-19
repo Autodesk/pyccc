@@ -18,7 +18,7 @@ RUNNING = 'Running'
 FINISHING = 'Finishing'
 FINISHED = 'Finished'
 
-ERROR = 'Error'
+ERROR = 'Error'  # indicates only to ENGINE errors, not errors in the job itself
 TIMEOUT = 'Timeout'
 KILLED = 'Killed'
 

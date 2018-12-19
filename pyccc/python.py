@@ -173,7 +173,7 @@ class PythonJob(job.Job):
     def result(self):
         """The return value of the callback function if provided, or ``self.function_result`` if not
         """
-        self._finish_job()
+        self._ensure_finished()
 
         if self.when_finished is None:
             return self.function_result
@@ -184,7 +184,7 @@ class PythonJob(job.Job):
     def function_result(self):
         """ The return value of the called python function
         """
-        self._finish_job()
+        self._ensure_finished()
         if self._function_result is None:
             self.reraise_remote_exception(force=True)  # there's no result to return
             try:

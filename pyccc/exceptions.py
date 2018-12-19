@@ -59,8 +59,14 @@ class JobStillRunning(JobExceptionBase):
     """ Raised when a job's status is not "Finshed" or "Error"
     """
 
-class JobErrorState(JobExceptionBase):
-    """ For jobs that have halted but did not complete successfully
+
+class EngineError(JobExceptionBase):
+    """ The engine encountered an error while trying to execute this job
+    """
+
+
+class JobErrorState(EngineError):
+    """ DEPRECATED in favor of the more accurately named EngineError"
     """
 
 

@@ -181,8 +181,7 @@ class Job(object):
     def wait(self):
         """Wait for job to finish"""
         returncode = self.engine.wait(self)
-        if not self._finished:
-            self._finish_job()
+        self._ensure_finished()
         return returncode
 
     @property
@@ -211,19 +210,20 @@ class Job(object):
         _ = self.status
         return bool(self._stopped)
 
-    def _finish_job(self):
+    def _ensure_finished(self):
         """
         To be called after job has finished.
         Retreives stdout, stderr, and list of available files
         :return:
         """
-        if self._finished: return
+        if self._finished:
+            return
         stat = self.status
         if stat not in status.DONE_STATES:
             raise pyccc.JobStillRunning(self)
         if stat != status.FINISHED:
-            raise pyccc.JobErrorState(self, 'Job did not complete successfully (status:%s)'%
-                                      stat)
+            raise pyccc.EngineError(self, 'Internal error while running job (status:%s)' %
+                                    stat)
         self._output_files = self.engine._list_output_files(self)
         self._final_stdout, self._final_stderr = self.engine._get_final_stds(self)
         self._finished = True
@@ -236,17 +236,17 @@ class Job(object):
         Returns:
             Result of the callback function, if present, otherwise none.
         """
-        if not self._finished: self._finish_job()
+        self._ensure_finished()
         return self._callback_result
 
     @property
     def stdout(self):
-        if not self._finished: self._finish_job()
+        self._ensure_finished()
         return self._final_stdout
 
     @property
     def stderr(self):
-        if not self._finished: self._finish_job()
+        self._ensure_finished()
         return self._final_stderr
 
     def get_output(self, filename=None):
@@ -255,9 +255,11 @@ class Job(object):
         - returns a dict if filename is None,
         or just the specific file otherwise
         """
-        if not self._finished: self._finish_job()
-        if filename: return self._output_files[filename]
-        else: return self._output_files
+        self._ensure_finished()
+        if filename:
+            return self._output_files[filename]
+        else:
+            return self._output_files
 
     def get_directory(self, path):
         """
@@ -274,9 +276,10 @@ class Job(object):
     def glob_output(self, pattern):
         """ Return dict of all files that match the glob pattern
         """
+        self._ensure_finished()
         filenames = self.get_output()
         matches = fnmatch.filter(filenames.keys(), pattern)
-        return {f:filenames[f] for f in matches}
+        return {f: filenames[f] for f in matches}
 
     def get_display_object(self):
         """Return a jupyter widget"""
@@ -302,6 +305,7 @@ class Job(object):
             update_references (bool): update internal outputs to reference the dumped files,
                 rather than their original locations
         """
+        self._ensure_finished()
         if not os.path.exists(target) or not exist_ok:
             os.mkdir(target)
         self.engine.dump_all_outputs(self, target, abspaths)
